@@ -1,0 +1,3422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Load Management · Bobhaul</title>
+<style>
+  /* ============ DESIGN TOKENS ============ */
+  :root {
+    --brand: #2f6bff;
+    --brand-strong: #1f4dd1;
+    --brand-soft: #eaf0ff;
+    --purple: #7c3aed;
+    --purple-soft: #f3edff;
+    --success: #16a34a;
+    --success-soft: #dcfce7;
+    --warning: #f59e0b;
+    --warning-soft: #fef3c7;
+    --danger: #ef4444;
+    --danger-soft: #fee2e2;
+    --info: #0284c7;
+    --info-soft: #e0f2fe;
+
+    --text-primary: #0b1220;
+    --text-secondary: #475569;
+    --text-tertiary: #64748b;
+    --text-muted: #94a3b8;
+
+    --bg-app: #f6f7fb;
+    --bg-subtle: #f1f4f9;
+    --bg-hover: #eef1f6;
+
+    --border: #e2e8f0;
+    --border-soft: #eef1f5;
+    --border-strong: #cbd5e1;
+
+    --required: #ef4444;
+
+    --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
+    --shadow-pop: 0 12px 32px -8px rgba(15,23,42,0.18), 0 4px 12px -4px rgba(15,23,42,0.10);
+
+    --header-height: 56px;
+    --sidebar-width: 248px;
+    --content-max: 1480px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg-app);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+  }
+  button { font-family: inherit; }
+  ::selection { background: var(--brand-soft); }
+
+  /* ============ APP SHELL ============ */
+  .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    min-height: 100vh;
+  }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    background: #fff;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: sticky; top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .sidebar-logo .logo {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #2f6bff 0%, #2f6bff 18%, #7c3aed 50%, #2f6bff 82%, #2f6bff 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sidebar-logo .logo .accent {
+    background: linear-gradient(90deg, #7c3aed, #c47bff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .nav-section {
+    padding: 6px 12px;
+  }
+  .nav-section + .nav-section { border-top: 1px solid var(--border-soft); padding-top: 14px; margin-top: 6px; }
+  .nav-section-title {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--text-muted); text-transform: uppercase;
+    padding: 8px 10px 6px;
+  }
+  .nav-item {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: 9px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: transparent;
+    border: 0; cursor: pointer;
+    font-size: 13.5px; font-weight: 500;
+    text-align: left;
+    transition: background 120ms ease, color 120ms ease;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+  .nav-item.active {
+    background: var(--brand-soft);
+    color: var(--brand);
+    font-weight: 600;
+  }
+  .nav-item.active .nav-icon { color: var(--brand); }
+  .nav-icon {
+    width: 18px; height: 18px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .nav-item.active .nav-icon { color: var(--brand); }
+  .nav-badge {
+    margin-left: auto;
+    font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+    background: var(--bg-subtle);
+    color: var(--text-tertiary);
+  }
+  .nav-badge.hot {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+  }
+  .nav-badge.warn {
+    background: var(--warning); color: #fff;
+  }
+  .nav-item .chev {
+    width: 14px; height: 14px;
+    margin-left: auto;
+    color: var(--text-muted);
+    transition: transform 200ms ease;
+  }
+  .nav-item.expander.open .chev { transform: rotate(90deg); }
+  .subnav {
+    display: none;
+    padding-left: 28px;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 1px;
+  }
+  .nav-item.expander.open + .subnav { display: flex; }
+  .subnav .nav-item { padding: 7px 10px; font-size: 13px; }
+
+  .sidebar-foot {
+    margin-top: auto;
+    padding: 10px 12px 16px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .user-chip:hover { background: var(--bg-subtle); }
+  .user-chip .avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 13px;
+  }
+  .user-chip .who { line-height: 1.15; flex: 1; min-width: 0; }
+  .user-chip .name { font-weight: 600; font-size: 13.5px; color: var(--text-primary); }
+  .user-chip .email { color: var(--text-tertiary); font-size: 12px; }
+
+  .sidebar-collapse {
+    width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px;
+    border: 0; background: transparent;
+    border-radius: 8px; cursor: pointer;
+    color: var(--text-tertiary); font-size: 12px;
+    margin-top: 6px;
+  }
+  .sidebar-collapse:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* Sidebar collapsed mode */
+  .app.sidebar-collapsed { grid-template-columns: 64px 1fr; }
+  .app.sidebar-collapsed .sidebar-logo .logo,
+  .app.sidebar-collapsed .nav-section-title,
+  .app.sidebar-collapsed .nav-item span:not(.nav-icon),
+  .app.sidebar-collapsed .nav-item .chev,
+  .app.sidebar-collapsed .nav-badge,
+  .app.sidebar-collapsed .subnav,
+  .app.sidebar-collapsed .user-chip .who { display: none; }
+  .app.sidebar-collapsed .nav-item { justify-content: center; padding: 9px 8px; }
+  .app.sidebar-collapsed .sidebar-logo { padding: 0 12px; justify-content: center; }
+  .app.sidebar-collapsed .user-chip { justify-content: center; padding: 12px 8px; }
+  .app.sidebar-collapsed .sidebar-collapse svg { transform: rotate(180deg); }
+
+  /* ============ TOPBAR ============ */
+  main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    height: var(--header-height);
+    display: flex; align-items: center;
+    padding: 0 24px;
+    gap: 14px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-tertiary);
+  }
+  .breadcrumb .crumb {
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: transparent; border: 0; padding: 4px 6px; border-radius: 6px;
+    cursor: pointer; font-size: 13px;
+  }
+  .breadcrumb .crumb:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .breadcrumb .crumb.current { color: var(--text-primary); font-weight: 600; cursor: default; }
+  .breadcrumb .crumb.current:hover { background: transparent; }
+  .breadcrumb .sep { color: var(--text-muted); }
+
+  .topbar-spacer { flex: 1; }
+
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-tertiary);
+    display: grid; place-items: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 120ms ease;
+  }
+  .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border); }
+  .icon-btn .dot {
+    position: absolute; top: 7px; right: 7px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--danger);
+    box-shadow: 0 0 0 2px #fff;
+  }
+
+  .org-select {
+    height: 34px; padding: 0 12px;
+    border: 1px solid var(--border); background: #fff;
+    border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    cursor: pointer;
+  }
+  .org-select:hover { border-color: var(--border-strong); }
+  .org-select svg:first-child { color: var(--brand); }
+
+  /* ============ PAGE LAYOUT ============ */
+  .page {
+    padding: 24px 28px 36px;
+    max-width: var(--content-max);
+    width: 100%;
+    margin: 0 auto;
+  }
+  .page-head {
+    display: flex; align-items: flex-start; gap: 14px;
+    margin-bottom: 16px;
+  }
+  .page-head .icon-tile {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(47,107,255,0.18);
+  }
+  .page-title {
+    font-size: 22px; font-weight: 700;
+    margin: 0; letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 2px 0 0;
+  }
+
+  /* ============ TOOLBAR ============ */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .input, .select {
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  .input:focus, .select:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(47,107,255,0.15);
+  }
+  .input::placeholder { color: var(--text-muted); }
+  .select {
+    padding-right: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    appearance: none;
+  }
+  .search-input { position: relative; display: inline-flex; align-items: center; }
+  .search-input svg { position: absolute; left: 12px; color: var(--text-tertiary); }
+  .search-input input { padding-left: 36px; min-width: 280px; }
+
+  .btn {
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 60ms ease;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-hover); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary {
+    background: var(--brand); color: #fff;
+    border-color: var(--brand);
+  }
+  .btn.primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
+  .btn.danger {
+    background: var(--danger); color: #fff;
+    border-color: var(--danger);
+  }
+  .btn.danger:hover { background: #d63b3b; border-color: #d63b3b; }
+  .btn.danger-ghost { color: var(--danger); border-color: var(--danger-soft); background: #fff; }
+  .btn.danger-ghost:hover { background: var(--danger-soft); }
+  .btn.success {
+    background: var(--success); color: #fff;
+    border-color: var(--success);
+  }
+  .btn.success:hover { background: #128a3e; border-color: #128a3e; }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
+  .btn.ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .btn.sm { height: 32px; padding: 0 11px; font-size: 12.5px; border-radius: 8px; }
+  .btn.lg { height: 44px; padding: 0 18px; font-size: 14px; border-radius: 10px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .toolbar-spacer { flex: 1; }
+
+  .now-serving {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--success-soft);
+    color: var(--success);
+    font-size: 12.5px; font-weight: 600;
+    border: 1px solid rgba(22,163,74,0.18);
+  }
+  .now-serving .ns-pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--success);
+    animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(1.3); }
+  }
+
+  /* ============ KPI ROW ============ */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .kpi {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    row-gap: 4px;
+    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    box-shadow: var(--shadow-card);
+  }
+  .kpi:hover { transform: translateY(-1px); box-shadow: var(--shadow-pop); border-color: var(--border-strong); }
+  .kpi .label {
+    font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    grid-column: 1;
+  }
+  .kpi .value {
+    font-size: 24px; font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    grid-column: 1;
+  }
+  .kpi .delta {
+    font-size: 11.5px; color: var(--text-tertiary);
+    grid-column: 1 / span 2;
+    font-weight: 500;
+  }
+  .kpi .delta.warn { color: var(--warning); }
+  .kpi .delta.down { color: var(--danger); }
+  .kpi .delta.up   { color: var(--success); }
+  .kpi .accent {
+    grid-column: 2; grid-row: 1 / span 2;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid; place-items: center;
+    align-self: start;
+  }
+  .kpi--gate .accent { background: var(--brand-soft); color: var(--brand); }
+  .kpi--in   .accent { background: var(--success-soft); color: var(--success); }
+  .kpi--wait .accent { background: var(--warning-soft); color: var(--warning); }
+  .kpi--load .accent { background: var(--purple-soft); color: var(--purple); }
+  .kpi--out  .accent { background: var(--info-soft);   color: var(--info); }
+
+  /* ============ CARD (generic) ============ */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-card);
+  }
+  .card-head {
+    padding: 16px 20px;
+    display: flex; align-items: flex-start;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .card-head .titles { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .card-title {
+    font-size: 15.5px; font-weight: 700;
+    color: var(--text-primary); margin: 0; letter-spacing: -0.01em;
+  }
+  .card-sub { font-size: 12.5px; color: var(--text-secondary); margin: 0; }
+  .card-head .right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+  .card-body { padding: 18px 20px; }
+
+  /* ============ SCAN HERO ============ */
+  .scan-hero {
+    background: linear-gradient(135deg, #2f6bff 0%, #5b8cff 60%, #7c3aed 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 22px;
+    align-items: center;
+    box-shadow: 0 6px 28px -10px rgba(47,107,255,0.45);
+    position: relative;
+    overflow: hidden;
+  }
+  .scan-hero::before {
+    content: "";
+    position: absolute; right: -40px; top: -40px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    pointer-events: none;
+  }
+  .scan-hero::after {
+    content: "";
+    position: absolute; right: -80px; bottom: -80px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    pointer-events: none;
+  }
+  .sh-info { position: relative; z-index: 1; }
+  .sh-eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    opacity: 0.85; margin-bottom: 6px;
+  }
+  .sh-title {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 4px;
+  }
+  .sh-sub {
+    font-size: 13.5px; opacity: 0.85; margin: 0;
+    line-height: 1.5;
+  }
+  .sh-meta {
+    margin-top: 12px;
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .sh-meta .sh-stat {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.16);
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+  }
+  .sh-meta .sh-stat b { font-weight: 700; }
+  .sh-actions { position: relative; z-index: 1; display: flex; gap: 10px; align-items: center; }
+  .scan-btn {
+    background: #fff; color: var(--brand);
+    border: 0;
+    border-radius: 14px;
+    padding: 16px 22px;
+    font-weight: 700; font-size: 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px -4px rgba(0,0,0,0.25);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .scan-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -6px rgba(0,0,0,0.32); }
+  .scan-btn .scan-pulse {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--brand);
+    animation: pulse 1.6s infinite;
+  }
+  .scan-btn-secondary {
+    background: rgba(255,255,255,0.18);
+    color: #fff; border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-weight: 600; font-size: 13px;
+    cursor: pointer;
+    transition: background 120ms ease;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .scan-btn-secondary:hover { background: rgba(255,255,255,0.28); }
+
+  /* ============ CONTENT GRID ============ */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 460px;
+    gap: 18px;
+    margin-bottom: 18px;
+    align-items: start;
+  }
+
+  /* ============ QUEUE CARDS ============ */
+  .queue-list {
+    display: flex; flex-direction: column;
+  }
+  .queue-card {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .queue-card:last-child { border-bottom: 0; }
+  .queue-card:hover { background: var(--bg-subtle); }
+  .qc-av {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 14px;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+  .qc-info { min-width: 0; }
+  .qc-name {
+    font-size: 14px; font-weight: 700; color: var(--text-primary);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 2px;
+  }
+  .qc-name .qc-pill {
+    font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .qc-name .qc-pill.appt    { background: var(--brand-soft); color: var(--brand); }
+  .qc-name .qc-pill.walkin  { background: var(--warning-soft); color: var(--warning); }
+  .qc-name .qc-pill.early   { background: var(--info-soft); color: var(--info); }
+  .qc-meta {
+    font-size: 12.5px; color: var(--text-secondary);
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .qc-meta .dot-sep { color: var(--text-muted); }
+  .qc-meta .qc-ref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--text-tertiary); }
+  .qc-extras {
+    margin-top: 4px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .qc-tag {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--bg-subtle); color: var(--text-secondary);
+  }
+  .qc-tag.danger { background: var(--danger-soft); color: var(--danger); }
+  .qc-tag.warn { background: var(--warning-soft); color: var(--warning); }
+  .qc-actions { display: flex; gap: 8px; align-items: center; }
+  .qc-wait {
+    text-align: right;
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    margin-right: 4px;
+  }
+  .qc-wait b { display: block; font-size: 14px; color: var(--text-primary); font-weight: 700; }
+  .qc-wait.warn b { color: var(--warning); }
+  .qc-wait.danger b { color: var(--danger); }
+
+  /* ============ DOCK GRID ============ */
+  .dock-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 14px 20px 20px;
+  }
+  .dock-cell {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    position: relative;
+    background: #fff;
+    min-height: 96px;
+  }
+  .dock-cell:hover { transform: translateY(-1px); box-shadow: var(--shadow-pop); border-color: var(--border-strong); }
+  .dock-cell .dc-head {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .dock-cell .dc-id {
+    font-weight: 800; font-size: 14px;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .dock-cell .dc-status-pill {
+    font-size: 9.5px; font-weight: 800;
+    padding: 2px 6px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .dock-cell .dc-status-pill .pulse {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor;
+  }
+  .dock-cell .dc-body {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    flex: 1;
+    line-height: 1.4;
+  }
+  .dock-cell .dc-body b { color: var(--text-primary); font-weight: 700; }
+  .dock-cell .dc-foot {
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dock-cell.idle { border-color: var(--success); background: linear-gradient(180deg, var(--success-soft), #fff); }
+  .dock-cell.idle .dc-status-pill { background: var(--success); color: #fff; }
+
+  .dock-cell.loading { border-color: var(--brand); background: linear-gradient(180deg, var(--brand-soft), #fff); }
+  .dock-cell.loading .dc-status-pill { background: var(--brand); color: #fff; }
+  .dock-cell.loading .dc-status-pill .pulse { animation: pulse 1.6s infinite; background: #fff; }
+
+  .dock-cell.reserved { border-color: var(--warning); background: linear-gradient(180deg, var(--warning-soft), #fff); }
+  .dock-cell.reserved .dc-status-pill { background: var(--warning); color: #fff; }
+
+  .dock-cell.maint { border-color: var(--text-muted); background: linear-gradient(180deg, var(--bg-subtle), #fff); opacity: 0.85; }
+  .dock-cell.maint .dc-status-pill { background: var(--text-muted); color: #fff; }
+
+  .dock-cell.late { border-color: var(--danger); background: linear-gradient(180deg, var(--danger-soft), #fff); }
+  .dock-cell.late .dc-status-pill { background: var(--danger); color: #fff; }
+  .dock-cell.late .dc-status-pill .pulse { animation: pulse 1.2s infinite; background: #fff; }
+
+  /* ============ AVATARS ============ */
+  .av-1 { background: linear-gradient(135deg, #2f6bff, #6a8eff); color: #fff; }
+  .av-2 { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; }
+  .av-3 { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #fff; }
+  .av-4 { background: linear-gradient(135deg, #ef4444, #f87171); color: #fff; }
+  .av-5 { background: linear-gradient(135deg, #06b6d4, #22d3ee); color: #fff; }
+  .av-6 { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
+
+  /* ============ ACTIVE TABLE ============ */
+  table.actives { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.actives thead th {
+    text-align: left;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+    white-space: nowrap;
+    position: relative;
+  }
+  table.actives thead th:first-child { padding-left: 20px; }
+  table.actives thead th:last-child  { padding-right: 20px; }
+  table.actives thead th[data-sort] { cursor: pointer; user-select: none; }
+  table.actives thead th[data-sort]:hover { color: var(--text-primary); }
+  table.actives thead th .sort-arrow { font-size: 9px; margin-left: 4px; opacity: 0.4; transition: transform 200ms ease; }
+  table.actives thead th.sort-asc .sort-arrow,
+  table.actives thead th.sort-desc .sort-arrow { color: var(--brand); opacity: 1; }
+  table.actives thead th.sort-desc .sort-arrow { transform: rotate(180deg); }
+
+  table.actives tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text-primary);
+    vertical-align: middle;
+  }
+  table.actives tbody td:first-child { padding-left: 20px; }
+  table.actives tbody td:last-child  { padding-right: 20px; }
+  table.actives tbody tr {
+    transition: background 120ms ease;
+    cursor: pointer;
+  }
+  table.actives tbody tr:hover { background: var(--bg-subtle); }
+  table.actives tbody tr:last-child td { border-bottom: 0; }
+
+  .ref-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--text-secondary); }
+
+  .driver-cell {
+    display: flex; align-items: center; gap: 10px; min-width: 0;
+  }
+  .driver-cell .av {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 11.5px;
+    flex-shrink: 0;
+  }
+  .driver-cell .nm { font-weight: 600; color: var(--text-primary); font-size: 13.5px; }
+  .driver-cell .sub { font-size: 11.5px; color: var(--text-tertiary); }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; line-height: 1;
+    white-space: nowrap;
+  }
+  .status-pill .pulse {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .status-pill.s-ingate    { background: var(--brand-soft); color: var(--brand); }
+  .status-pill.s-ingate .pulse { animation: pulse 1.6s infinite; }
+  .status-pill.s-loading   { background: var(--purple-soft); color: var(--purple); }
+  .status-pill.s-loading .pulse { animation: pulse 1.6s infinite; }
+  .status-pill.s-loaded    { background: var(--success-soft); color: var(--success); }
+  .status-pill.s-out       { background: #eef0f3; color: var(--text-secondary); }
+  .status-pill.s-late      { background: var(--danger-soft); color: var(--danger); }
+  .status-pill.s-late .pulse { animation: pulse 1.2s infinite; }
+
+  .dir-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+  .dir-pill.in    { background: #e6f5fc; color: #0369a1; border: 1px solid #cfeaf6; }
+  .dir-pill.out   { background: #f1ecff; color: #6d28d9; border: 1px solid #e0d4ff; }
+  .dir-pill.cross { background: #fff7e6; color: #b45309; border: 1px solid #fde7b8; }
+
+  .row-actions { display: inline-flex; gap: 4px; }
+  .row-act {
+    width: 28px; height: 28px;
+    border-radius: 7px; border: 1px solid transparent;
+    background: transparent;
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    cursor: pointer;
+  }
+  .row-act:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border); }
+
+  .filter-chips {
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  }
+  .filter-chip {
+    height: 30px; padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--text-secondary);
+    font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .filter-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .filter-chip.is-active {
+    background: var(--brand);
+    color: #fff;
+    border-color: var(--brand);
+  }
+  .filter-chip .chip-count {
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.18);
+  }
+  .filter-chip:not(.is-active) .chip-count { background: var(--bg-subtle); color: var(--text-tertiary); }
+
+  .empty-search-row td {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-style: italic;
+    padding: 32px !important;
+  }
+
+  /* ============ ACTIVITY FEED ============ */
+  .activity-list { padding: 4px 0; }
+  .activity-item {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .activity-item:last-child { border-bottom: 0; }
+  .activity-item .ai-ic {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+  }
+  .activity-item .ai-ic.in    { background: var(--brand-soft); color: var(--brand); }
+  .activity-item .ai-ic.out   { background: var(--success-soft); color: var(--success); }
+  .activity-item .ai-ic.warn  { background: var(--warning-soft); color: var(--warning); }
+  .activity-item .ai-ic.alert { background: var(--danger-soft); color: var(--danger); }
+  .activity-item .ai-text { font-size: 13px; color: var(--text-primary); line-height: 1.4; }
+  .activity-item .ai-text b { font-weight: 700; }
+  .activity-item .ai-text .ai-sub { font-size: 11.5px; color: var(--text-tertiary); margin-top: 2px; display: block; }
+  .activity-item .ai-time {
+    font-size: 11.5px; color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* row-flash */
+  @keyframes rowPulse {
+    0% { background: var(--brand-soft); }
+    100% { background: transparent; }
+  }
+  tr.row-flash, .queue-card.row-flash, .dock-cell.row-flash, .activity-item.row-flash { animation: rowPulse 1200ms ease; }
+
+  /* ============ DRAWER ============ */
+  .scrim {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 60;
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 480px; max-width: 92vw;
+    background: #fff;
+    box-shadow: -10px 0 32px -8px rgba(15,23,42,0.16);
+    z-index: 70;
+    transform: translateX(100%);
+    transition: transform 280ms cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer.wide { width: 760px; max-width: 96vw; }
+
+  .drawer-head {
+    display: flex; gap: 12px; align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .drawer-head .icon-tile {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--brand-soft); color: var(--brand);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(47,107,255,0.18);
+  }
+  .drawer-title { font-size: 18px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .drawer-sub { color: var(--text-secondary); font-size: 13px; margin: 0; }
+  .drawer-close {
+    width: 36px; height: 36px;
+    border: 0; background: transparent;
+    border-radius: 8px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: background 120ms ease;
+  }
+  .drawer-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  .drawer-body { flex: 1; overflow-y: auto; padding: 22px 24px; }
+  .drawer-body::-webkit-scrollbar { width: 8px; }
+  .drawer-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+
+  .drawer-foot {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border-soft);
+    display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  }
+  .drawer-foot .right-actions { display: flex; gap: 10px; margin-left: auto; }
+
+  .form-section {
+    display: flex; flex-direction: column; gap: 14px;
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .form-section:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+  .form-section-title {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 0;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+  }
+  .field .input, .field .select, .field textarea {
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    outline: none;
+    width: 100%;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+    font-family: inherit;
+  }
+  .field textarea { height: auto; padding: 10px 12px; resize: vertical; min-height: 70px; line-height: 1.45; }
+  .field .input:focus, .field .select:focus, .field textarea:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(47,107,255,0.15);
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  /* Verify card */
+  .verify-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .verify-row {
+    display: grid;
+    grid-template-columns: 110px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 13.5px;
+  }
+  .verify-row:last-child { border-bottom: 0; }
+  .verify-row .vr-l { color: var(--text-tertiary); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .verify-row .vr-v { color: var(--text-primary); font-weight: 600; }
+  .verify-row .vr-check {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+  }
+  .verify-row.ok .vr-check { background: var(--success); color: #fff; }
+  .verify-row.warn .vr-check { background: var(--warning); color: #fff; }
+  .verify-row.fail .vr-check { background: var(--danger); color: #fff; }
+
+  /* Radio cards */
+  .radio-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #fff;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+    display: flex; flex-direction: column; gap: 4px;
+    text-align: left;
+  }
+  .radio-card:hover { background: var(--bg-hover); }
+  .radio-card.on {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+  }
+  .radio-card .ic { color: var(--text-tertiary); }
+  .radio-card.on .ic { color: var(--brand); }
+  .radio-card .lbl { font-size: 13px; font-weight: 600; }
+  .radio-card .sub { font-size: 11.5px; color: var(--text-tertiary); }
+
+  /* Available dock chips inside drawer */
+  .dock-chip-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .dock-chip {
+    padding: 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    text-align: center;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .dock-chip:hover { background: var(--bg-hover); }
+  .dock-chip.on {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .dock-chip .dc-num { font-weight: 800; font-size: 14px; color: var(--text-primary); }
+  .dock-chip.on .dc-num { color: var(--brand); }
+  .dock-chip .dc-cap { font-size: 10.5px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.96);
+    width: 480px; max-width: 92vw;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 64px -12px rgba(15,23,42,0.30), 0 8px 24px -8px rgba(15,23,42,0.16);
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+    z-index: 70;
+    display: flex; flex-direction: column;
+  }
+  .modal.open {
+    opacity: 1; pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .modal-head {
+    padding: 22px 24px 0;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .modal-head .icon-tile {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--brand-soft); color: var(--brand);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(47,107,255,0.18);
+  }
+  .modal-head .icon-tile.success { background: var(--success-soft); color: var(--success); box-shadow: inset 0 0 0 1px rgba(22,163,74,0.18); }
+  .modal-head .icon-tile.danger { background: var(--danger-soft); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(239,68,68,0.18); }
+  .modal-title { font-size: 17px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .modal-sub { color: var(--text-secondary); font-size: 13px; margin: 0; line-height: 1.5; }
+  .modal-body { padding: 16px 24px 8px; }
+  .modal-foot {
+    padding: 12px 24px 18px;
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .modal-preview {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .modal-preview .mp-row {
+    display: flex; gap: 10px;
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .modal-preview .mp-row .mp-l { min-width: 90px; color: var(--text-tertiary); font-weight: 600; }
+  .modal-preview .mp-row b { color: var(--text-primary); font-weight: 700; }
+
+  .signature-pad {
+    border: 1.5px dashed var(--border-strong);
+    border-radius: 10px;
+    background: var(--bg-subtle);
+    padding: 28px;
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .signature-pad:hover { border-color: var(--brand); color: var(--brand); }
+  .signature-pad.signed { border-style: solid; border-color: var(--success); background: var(--success-soft); color: var(--success); font-weight: 700; }
+
+  /* Toast */
+  .toast-stack {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    display: flex; flex-direction: column-reverse;
+    gap: 10px; z-index: 90;
+    pointer-events: none;
+  }
+  .toast {
+    pointer-events: auto;
+    min-width: 280px; max-width: 380px;
+    background: #0b1220;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 14px 12px 12px;
+    display: grid; grid-template-columns: auto 1fr auto;
+    gap: 10px; align-items: start;
+    box-shadow: 0 10px 30px -8px rgba(0,0,0,0.4);
+    animation: toastIn 240ms ease;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  .toast.exiting { animation: toastOut 220ms ease forwards; }
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateX(20px); }
+  }
+  .toast .ti {
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.1);
+  }
+  .toast.success .ti { background: var(--success-soft); color: var(--success); }
+  .toast.warn    .ti { background: var(--warning-soft); color: var(--warning); }
+  .toast.error   .ti { background: var(--danger-soft);  color: var(--danger); }
+  .toast.info    .ti { background: var(--brand-soft);   color: var(--brand); }
+  .toast .body .title { font-weight: 700; font-size: 13.5px; }
+  .toast .body .sub { font-size: 12px; opacity: 0.78; margin-top: 2px; }
+  .toast .x {
+    background: transparent; border: 0; color: rgba(255,255,255,0.6);
+    cursor: pointer; padding: 2px; border-radius: 6px;
+  }
+  .toast .x:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+  /* Popmenu */
+  .popmenu {
+    position: fixed;
+    z-index: 80;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-pop);
+    padding: 6px;
+    opacity: 0; transform: translateY(-4px) scale(0.98);
+    transition: opacity 140ms ease, transform 140ms ease;
+    pointer-events: none;
+  }
+  .popmenu.is-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+  .pm-item {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: transparent; border: 0;
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .pm-item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+  .pm-ic {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--bg-subtle);
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+
+  /* Misc */
+  .badge-counter {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+
+  /* Responsive */
+  @media (max-width: 1280px) {
+    .content-grid { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .scan-hero { grid-template-columns: 1fr; }
+    .dock-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+
+  /* ============ LOAD MANAGEMENT — page-specific ============ */
+
+  /* Shift status banner */
+  .shift-banner {
+    background: linear-gradient(135deg, #0b1220 0%, #1e2a4a 60%, #2f6bff 130%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 22px;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 28px -10px rgba(15,23,42,0.32);
+  }
+  .shift-banner::before {
+    content: ""; position: absolute; right: -60px; top: -60px;
+    width: 240px; height: 240px; border-radius: 50%;
+    background: rgba(124,58,237,0.18); pointer-events: none;
+  }
+  .sb-info { position: relative; z-index: 1; }
+  .sb-eyebrow {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #c4d2ff; margin-bottom: 6px;
+  }
+  .sb-title { font-size: 21px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sb-sub { font-size: 13.5px; opacity: 0.85; margin: 0; }
+  .sb-meta {
+    margin-top: 14px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .sb-meta .sb-stat {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px;
+    background: rgba(255,255,255,0.10);
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,0.14);
+  }
+  .sb-meta .sb-stat b { font-weight: 700; }
+  .sb-crew {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  }
+  .crew-stack {
+    display: flex; align-items: center;
+  }
+  .crew-stack .crew-av {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 2px solid #1e2a4a;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 12px;
+    margin-left: -10px;
+  }
+  .crew-stack .crew-av:first-child { margin-left: 0; }
+  .crew-more {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 11.5px; font-weight: 600;
+  }
+
+  /* Two-column for active loads + roster */
+  .lm-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+    align-items: start;
+  }
+
+  /* Active load card */
+  .load-list {
+    display: flex; flex-direction: column;
+  }
+  .load-card {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+    transition: background 120ms ease;
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 14px;
+    align-items: center;
+  }
+  .load-card:last-child { border-bottom: 0; }
+  .load-card:hover { background: var(--bg-subtle); }
+  .lc-dock {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 16px;
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+  }
+  .lc-dock.late { background: var(--danger-soft); color: var(--danger); }
+  .lc-dock.warn { background: var(--warning-soft); color: var(--warning); }
+  .lc-info { min-width: 0; }
+  .lc-info .lc-row1 {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .lc-info .lc-carrier {
+    font-weight: 700; font-size: 14px; color: var(--text-primary);
+  }
+  .lc-info .lc-ref {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; color: var(--text-tertiary);
+  }
+  .lc-info .lc-row2 {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .lc-info .lc-row2 .dot { color: var(--text-muted); }
+  .lc-info .lc-loader {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .lc-info .lc-loader .lc-av {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 9.5px;
+  }
+
+  /* Progress bar */
+  .progress-row {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+  .progress {
+    flex: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--bg-subtle);
+    overflow: hidden;
+    position: relative;
+  }
+  .progress > .bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--brand), var(--purple));
+    border-radius: 999px;
+    transition: width 280ms ease;
+  }
+  .progress.warn > .bar { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+  .progress.late > .bar { background: linear-gradient(90deg, var(--danger), #f87171); }
+  .progress.done > .bar { background: linear-gradient(90deg, var(--success), #22c55e); }
+  .progress-row .pct {
+    font-weight: 700; color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    min-width: 38px; text-align: right;
+  }
+
+  .lc-actions {
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+    flex-shrink: 0;
+  }
+  .lc-eta {
+    font-size: 11px; color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .lc-eta b { display: block; font-size: 13px; color: var(--text-primary); font-weight: 700; margin-bottom: 1px; }
+  .lc-eta.late b { color: var(--danger); }
+
+  /* Loader roster */
+  .roster-list { display: flex; flex-direction: column; }
+  .roster-item {
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    transition: background 120ms ease;
+    cursor: pointer;
+  }
+  .roster-item:last-child { border-bottom: 0; }
+  .roster-item:hover { background: var(--bg-subtle); }
+  .roster-item .ri-av {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 12px;
+  }
+  .roster-item .ri-info { min-width: 0; }
+  .roster-item .ri-name { font-weight: 700; font-size: 13.5px; color: var(--text-primary); }
+  .roster-item .ri-task { font-size: 11.5px; color: var(--text-tertiary); margin-top: 1px; }
+  .roster-item .ri-stat {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 3px 8px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .roster-item .ri-stat.busy  { background: var(--brand-soft); color: var(--brand); }
+  .roster-item .ri-stat.idle  { background: var(--success-soft); color: var(--success); }
+  .roster-item .ri-stat.break { background: var(--warning-soft); color: var(--warning); }
+  .roster-item .ri-stat.off   { background: var(--bg-subtle); color: var(--text-tertiary); }
+
+  /* Backlog table */
+  table.backlog { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.backlog thead th {
+    text-align: left;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+    white-space: nowrap;
+  }
+  table.backlog thead th:first-child { padding-left: 20px; }
+  table.backlog thead th:last-child  { padding-right: 20px; }
+  table.backlog thead th[data-sort] { cursor: pointer; user-select: none; position: relative; }
+  table.backlog thead th[data-sort]:hover { color: var(--text-primary); }
+  table.backlog thead th .sort-arrow { font-size: 9px; margin-left: 4px; opacity: 0.4; transition: transform 200ms ease; }
+  table.backlog thead th.sort-asc .sort-arrow,
+  table.backlog thead th.sort-desc .sort-arrow { color: var(--brand); opacity: 1; }
+  table.backlog thead th.sort-desc .sort-arrow { transform: rotate(180deg); }
+  table.backlog tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text-primary);
+    vertical-align: middle;
+  }
+  table.backlog tbody td:first-child { padding-left: 20px; }
+  table.backlog tbody td:last-child  { padding-right: 20px; }
+  table.backlog tbody tr {
+    transition: background 120ms ease;
+    cursor: pointer;
+  }
+  table.backlog tbody tr:hover { background: var(--bg-subtle); }
+  table.backlog tbody tr:last-child td { border-bottom: 0; }
+  .priority-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .priority-pill.high   { background: var(--danger-soft); color: var(--danger); }
+  .priority-pill.med    { background: var(--warning-soft); color: var(--warning); }
+  .priority-pill.low    { background: var(--bg-subtle); color: var(--text-secondary); }
+
+  /* Equipment status */
+  .equip-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  .equip-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--bg-subtle);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .eq-head { display: flex; align-items: flex-start; justify-content: space-between; }
+  .eq-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: #fff;
+    display: grid; place-items: center;
+    color: var(--brand);
+    border: 1px solid var(--border);
+  }
+  .eq-name { font-weight: 700; font-size: 13.5px; color: var(--text-primary); }
+  .eq-sub  { font-size: 11.5px; color: var(--text-tertiary); margin-top: 1px; }
+  .eq-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 4px;
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .eq-bar-track {
+    flex: 1; height: 8px; border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .eq-bar-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--purple)); border-radius: 999px; }
+  .eq-bar-fill.warn { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+  .eq-bar-fill.danger { background: linear-gradient(90deg, var(--danger), #f87171); }
+  .eq-units {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
+  }
+  .eq-unit {
+    height: 22px; border-radius: 5px;
+    background: #fff; border: 1px solid var(--border);
+    font-size: 9.5px; font-weight: 700;
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+  }
+  .eq-unit.busy { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .eq-unit.maint { background: var(--text-muted); color: #fff; border-color: var(--text-muted); }
+
+  /* Pallet checklist (in detail drawer) */
+  .pallet-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+  }
+  .pallet-cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    font-size: 10px; font-weight: 700;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: transform 100ms ease;
+  }
+  .pallet-cell:hover { transform: scale(1.05); }
+  .pallet-cell.done {
+    background: var(--success);
+    color: #fff;
+    border-color: var(--success);
+  }
+  .pallet-cell.active {
+    background: var(--brand);
+    color: #fff;
+    border-color: var(--brand);
+    animation: pulse 1.6s infinite;
+  }
+  .pallet-cell.problem {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+
+  /* Recent completions */
+  .completions-list { display: flex; flex-direction: column; }
+  .completion-item {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .completion-item:last-child { border-bottom: 0; }
+  .completion-item:hover { background: var(--bg-subtle); }
+  .completion-item .co-ic {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--success-soft); color: var(--success);
+    display: grid; place-items: center;
+  }
+  .completion-item .co-text { font-size: 13px; color: var(--text-primary); line-height: 1.4; }
+  .completion-item .co-text b { font-weight: 700; }
+  .completion-item .co-text .co-sub { font-size: 11.5px; color: var(--text-tertiary); margin-top: 2px; display: block; }
+  .completion-item .co-stats {
+    text-align: right;
+    font-size: 11px; color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+  .completion-item .co-stats b { display: block; font-size: 13px; color: var(--text-primary); font-weight: 700; }
+
+  /* Photo grid placeholder for detail drawer */
+  .photo-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  }
+  .photo-cell {
+    aspect-ratio: 4 / 3;
+    border-radius: 8px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+  }
+  .photo-cell:hover { border-color: var(--brand); }
+  .photo-cell.has-img {
+    background: linear-gradient(135deg, #cdd9eb, #e8ecf3);
+    color: var(--text-tertiary);
+  }
+  .photo-cell.add {
+    border-style: dashed;
+  }
+
+  /* Responsive overrides specific to LM */
+  @media (max-width: 1280px) {
+    .lm-grid { grid-template-columns: 1fr; }
+    .equip-grid { grid-template-columns: 1fr; }
+    .pallet-grid { grid-template-columns: repeat(6, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .shift-banner { grid-template-columns: 1fr; }
+    .pallet-grid { grid-template-columns: repeat(4, 1fr); }
+    .photo-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+</style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============== SIDEBAR ============== -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo">B<span class="accent">ob</span>haul</div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Analytics</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Communication</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Messages</span>
+          <span class="nav-badge">3</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span>Email</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Organization</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Carriers</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>
+          <span>Drivers</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 21V12h6v9"/></svg>
+          <span>Facilities</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Operations</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 8h4l3 3v6a1 1 0 0 1-1 1h-1"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg>
+          <span>Dock Management</span>
+          <span class="nav-badge hot">LIVE</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m8 14 3 3 5-6"/></svg>
+          <span>Appointments</span>
+          <span class="nav-badge warn">5</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H1l3 8h13l3-8h-8"/><path d="m12 11 0-9"/><path d="m9 6 3-4 3 4"/></svg>
+          <span>Check-in / Check-out</span>
+          <span class="nav-badge hot">4</span>
+        </button>
+        <button class="nav-item active" aria-current="page">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 7h6M6 11h12"/></svg>
+          <span>Load Management</span>
+          <span class="nav-badge warn">8</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Documents</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Bills of Lading</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span>Reports</span>
+        </button>
+      </div>
+
+      <div class="sidebar-foot">
+        <div class="user-chip">
+          <div class="avatar" style="background: linear-gradient(135deg, #f59e0b, #ef4444);">KR</div>
+          <div class="who">
+            <div class="name">K. Reeves</div>
+            <div class="email">Shift supervisor · Day</div>
+          </div>
+        </div>
+        <button class="sidebar-collapse" aria-label="Collapse sidebar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Collapse</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ============== MAIN ============== -->
+    <main>
+      <header class="topbar">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <button class="crumb">Operations</button>
+          <span class="sep">›</span>
+          <button class="crumb current">Load Management</button>
+        </nav>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-actions">
+          <button class="icon-btn" id="notifBell" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="dot"></span>
+          </button>
+          <button class="org-select" id="orgSelect">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 21V12h6v9"/></svg>
+            Bobhaul
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="icon-btn" id="userChip" aria-label="Sign out">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="page">
+
+        <!-- Page head -->
+        <div class="page-head">
+          <div class="icon-tile">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 7h6M6 11h12"/></svg>
+          </div>
+          <div>
+            <h1 class="page-title">Load Management</h1>
+            <p class="page-subtitle">Warehouse loading floor — Bobhaul · Dallas Distribution Hub</p>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <label class="search-input">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="input" id="globalSearch" placeholder="Search load, dock, loader, PO…" />
+          </label>
+          <select class="select" id="shiftFilter">
+            <option value="day" selected>Day shift · 06:00–14:00</option>
+            <option value="swing">Swing · 14:00–22:00</option>
+            <option value="night">Night · 22:00–06:00</option>
+          </select>
+          <select class="select" id="dockFilter">
+            <option value="all">All docks</option>
+            <option value="reefer">Reefer only (D-01–D-04)</option>
+            <option value="dry">Dry van (D-05–D-12)</option>
+          </select>
+          <div class="toolbar-spacer"></div>
+          <button class="btn" id="refreshBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh
+          </button>
+          <button class="btn" id="exportBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export shift report
+          </button>
+          <button class="btn primary" id="newLoadBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Start new load
+          </button>
+        </div>
+
+        <!-- KPIs -->
+        <section class="kpi-row">
+          <div class="kpi kpi--load" data-kpi="active">
+            <span class="label">Active Loads</span>
+            <span class="value">8</span>
+            <span class="delta">5 inbound · 3 outbound</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M6 7h6M6 11h12"/></svg></span>
+          </div>
+          <div class="kpi kpi--in" data-kpi="pallets">
+            <span class="label">Pallets Moved Today</span>
+            <span class="value">412</span>
+            <span class="delta up">▲ 38 vs same time yesterday</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>
+          </div>
+          <div class="kpi kpi--wait" data-kpi="time">
+            <span class="label">Avg Load Time</span>
+            <span class="value">47m</span>
+            <span class="delta">Target 50m · 6m under</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+          </div>
+          <div class="kpi kpi--gate" data-kpi="loaders">
+            <span class="label">Loaders On Shift</span>
+            <span class="value">6</span>
+            <span class="delta">5 active · 1 on break</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          </div>
+          <div class="kpi kpi--out" data-kpi="backlog">
+            <span class="label">Backlog</span>
+            <span class="value">3</span>
+            <span class="delta warn">Awaiting loader assignment</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span>
+          </div>
+        </section>
+
+        <!-- Shift banner -->
+        <section class="shift-banner">
+          <div class="sb-info">
+            <div class="sb-eyebrow">Active shift</div>
+            <h2 class="sb-title">Day shift · 06:00 – 14:00</h2>
+            <p class="sb-sub">Supervisor on duty: <b>K. Reeves</b> · Crew of 6 loaders · 3h 04m remaining</p>
+            <div class="sb-meta">
+              <div class="sb-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 14 loads completed</div>
+              <div class="sb-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> <b>412</b> pallets moved</div>
+              <div class="sb-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Avg <b>47m</b> per load</div>
+              <div class="sb-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg> 1 issue · D-12</div>
+            </div>
+          </div>
+          <div class="sb-crew">
+            <div class="crew-stack">
+              <div class="crew-av av-1">MT</div>
+              <div class="crew-av av-2">JL</div>
+              <div class="crew-av av-3">AC</div>
+              <div class="crew-av av-4">SH</div>
+              <div class="crew-av av-5">DP</div>
+              <div class="crew-av av-6">YK</div>
+            </div>
+            <button class="crew-more">View crew →</button>
+          </div>
+        </section>
+
+        <!-- Active Loads + Roster -->
+        <div class="lm-grid">
+
+          <!-- LEFT: Active loads -->
+          <section class="card" id="loadsCard">
+            <header class="card-head">
+              <div class="titles">
+                <h2 class="card-title">Active loads — in progress</h2>
+                <p class="card-sub">8 loads being worked on right now · click for details</p>
+              </div>
+              <div class="right">
+                <div class="filter-chips">
+                  <button class="filter-chip is-active" data-load-filter="all">All <span class="chip-count">8</span></button>
+                  <button class="filter-chip" data-load-filter="onpace">On pace <span class="chip-count">5</span></button>
+                  <button class="filter-chip" data-load-filter="warn">At risk <span class="chip-count">2</span></button>
+                  <button class="filter-chip" data-load-filter="late">Overrun <span class="chip-count">1</span></button>
+                </div>
+              </div>
+            </header>
+
+            <div class="load-list" id="loadList">
+
+              <article class="load-card" data-load-id="LD-D01" data-status="onpace" data-dock="D-01" data-carrier="Walmart Transport" data-loader="M. Tran">
+                <div class="lc-dock">D-01</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">Walmart Transport</span>
+                    <span class="lc-ref">PO-998612</span>
+                    <span class="status-pill s-loading"><span class="pulse"></span>Loading</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-1">MT</span><b>M. Tran</b></span>
+                    <span class="dot">·</span>
+                    <span>22 pallets · reefer @ 34°F</span>
+                    <span class="dot">·</span>
+                    <span>Started 07:52</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress"><div class="bar" style="width: 64%;"></div></div>
+                    <span class="pct">14/22</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta"><b>11:18</b>ETA finish · 18m left</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm" data-load-act="reassign">Reassign</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="load-card" data-load-id="LD-D03" data-status="onpace" data-dock="D-03" data-carrier="JB Hunt" data-loader="J. Lin">
+                <div class="lc-dock">D-03</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">JB Hunt</span>
+                    <span class="lc-ref">PO-998620</span>
+                    <span class="status-pill s-loading"><span class="pulse"></span>Loading</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-2">JL</span><b>J. Lin</b></span>
+                    <span class="dot">·</span>
+                    <span>26 pallets · dry van</span>
+                    <span class="dot">·</span>
+                    <span>Started 08:48</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress"><div class="bar" style="width: 27%;"></div></div>
+                    <span class="pct">7/26</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta"><b>10:30</b>ETA finish · on pace</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm" data-load-act="reassign">Reassign</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="load-card" data-load-id="LD-D05" data-status="onpace" data-dock="D-05" data-carrier="Knight Transport" data-loader="A. Cole">
+                <div class="lc-dock">D-05</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">Knight Transport</span>
+                    <span class="lc-ref">PO-771203</span>
+                    <span class="status-pill s-ingate"><span class="pulse"></span>Just started</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-3">AC</span><b>A. Cole</b></span>
+                    <span class="dot">·</span>
+                    <span>18 pallets · dry van</span>
+                    <span class="dot">·</span>
+                    <span>Started 08:58</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress"><div class="bar" style="width: 11%;"></div></div>
+                    <span class="pct">2/18</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta"><b>11:05</b>ETA finish · ahead 5m</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm" data-load-act="reassign">Reassign</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="load-card" data-load-id="LD-D07" data-status="warn" data-dock="D-07" data-carrier="Schneider" data-loader="S. Hayes">
+                <div class="lc-dock warn">D-07</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">Schneider</span>
+                    <span class="lc-ref">LD-44321</span>
+                    <span class="status-pill s-loading"><span class="pulse"></span>At risk</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-4">SH</span><b>S. Hayes</b></span>
+                    <span class="dot">·</span>
+                    <span>30 pallets · partial palletization</span>
+                    <span class="dot">·</span>
+                    <span>Started 08:54 (driver late)</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress warn"><div class="bar" style="width: 13%;"></div></div>
+                    <span class="pct">4/30</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta"><b>11:00</b>ETA · risk of overrun</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm" data-load-act="reassign">Reassign</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="load-card" data-load-id="LD-D09" data-status="onpace" data-dock="D-09" data-carrier="FedEx Freight" data-loader="D. Patel">
+                <div class="lc-dock">D-09</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">FedEx Freight</span>
+                    <span class="lc-ref">LTL-228841</span>
+                    <span class="status-pill s-loading"><span class="pulse"></span>Loading</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-5">DP</span><b>D. Patel</b></span>
+                    <span class="dot">·</span>
+                    <span>14 pallets · LTL outbound</span>
+                    <span class="dot">·</span>
+                    <span>Started 08:42</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress"><div class="bar" style="width: 71%;"></div></div>
+                    <span class="pct">10/14</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta"><b>11:00</b>ETA finish · on pace</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm" data-load-act="reassign">Reassign</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="load-card" data-load-id="LD-D11" data-status="onpace" data-dock="D-11" data-carrier="Sysco" data-loader="Y. Kim">
+                <div class="lc-dock">D-11</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">Sysco</span>
+                    <span class="lc-ref">LD-44510</span>
+                    <span class="status-pill s-loading"><span class="pulse"></span>Loading</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-6">YK</span><b>Y. Kim</b></span>
+                    <span class="dot">·</span>
+                    <span>24 pallets · cross-dock</span>
+                    <span class="dot">·</span>
+                    <span>Started 08:38</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress"><div class="bar" style="width: 79%;"></div></div>
+                    <span class="pct">19/24</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta"><b>11:08</b>ETA finish · on pace</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm" data-load-act="reassign">Reassign</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="load-card" data-load-id="LD-D04" data-status="warn" data-dock="D-04" data-carrier="Knight Transport" data-loader="A. Cole">
+                <div class="lc-dock warn">D-04</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">Knight Transport</span>
+                    <span class="lc-ref">PO-771244</span>
+                    <span class="status-pill s-loaded">Loaded · awaiting paperwork</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-3">AC</span><b>A. Cole</b></span>
+                    <span class="dot">·</span>
+                    <span>20 pallets · reefer</span>
+                    <span class="dot">·</span>
+                    <span>Started 08:08 · needs BOL</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress done"><div class="bar" style="width: 100%;"></div></div>
+                    <span class="pct">20/20</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta"><b>—</b>Ready to release</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm" data-load-act="bol">Print BOL</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="load-card" data-load-id="LD-D12" data-status="late" data-dock="D-12" data-carrier="Schneider" data-loader="K. Reeves (covering)">
+                <div class="lc-dock late">D-12</div>
+                <div class="lc-info">
+                  <div class="lc-row1">
+                    <span class="lc-carrier">Schneider</span>
+                    <span class="lc-ref">LD-44310</span>
+                    <span class="status-pill s-late"><span class="pulse"></span>Overrun · 26m</span>
+                  </div>
+                  <div class="lc-row2">
+                    <span class="lc-loader"><span class="lc-av av-3" style="background: linear-gradient(135deg, #ef4444, #f87171);">KR</span><b>K. Reeves</b> (covering)</span>
+                    <span class="dot">·</span>
+                    <span>40 pallets · partial restack required</span>
+                    <span class="dot">·</span>
+                    <span>Started 07:34</span>
+                  </div>
+                  <div class="progress-row">
+                    <div class="progress late"><div class="bar" style="width: 80%;"></div></div>
+                    <span class="pct">32/40</span>
+                  </div>
+                </div>
+                <div class="lc-actions">
+                  <div class="lc-eta late"><b>+26m</b>past target · escalated</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn sm danger-ghost" data-load-act="issue">Flag</button>
+                    <button class="btn sm success" data-load-act="complete">Mark complete</button>
+                  </div>
+                </div>
+              </article>
+
+            </div>
+          </section>
+
+          <!-- RIGHT: Loader roster -->
+          <section class="card" id="rosterCard">
+            <header class="card-head">
+              <div class="titles">
+                <h2 class="card-title">Loader roster · day shift</h2>
+                <p class="card-sub">6 on shift · click to view tasks</p>
+              </div>
+              <div class="right">
+                <button class="btn sm ghost" id="reassignAllBtn">Re-balance</button>
+              </div>
+            </header>
+
+            <div class="roster-list" id="rosterList">
+              <div class="roster-item" data-loader="M. Tran">
+                <span class="ri-av av-1">MT</span>
+                <div class="ri-info">
+                  <div class="ri-name">M. Tran</div>
+                  <div class="ri-task">D-01 · Walmart Transport · 14/22 pallets</div>
+                </div>
+                <span class="ri-stat busy">Loading</span>
+              </div>
+              <div class="roster-item" data-loader="J. Lin">
+                <span class="ri-av av-2">JL</span>
+                <div class="ri-info">
+                  <div class="ri-name">J. Lin</div>
+                  <div class="ri-task">D-03 · JB Hunt · 7/26 pallets</div>
+                </div>
+                <span class="ri-stat busy">Loading</span>
+              </div>
+              <div class="roster-item" data-loader="A. Cole">
+                <span class="ri-av av-3">AC</span>
+                <div class="ri-info">
+                  <div class="ri-name">A. Cole</div>
+                  <div class="ri-task">D-04 + D-05 · double-up · finishing reefer</div>
+                </div>
+                <span class="ri-stat busy">Loading × 2</span>
+              </div>
+              <div class="roster-item" data-loader="S. Hayes">
+                <span class="ri-av av-4">SH</span>
+                <div class="ri-info">
+                  <div class="ri-name">S. Hayes</div>
+                  <div class="ri-task">D-07 · Schneider · 4/30 pallets · at risk</div>
+                </div>
+                <span class="ri-stat busy">Loading</span>
+              </div>
+              <div class="roster-item" data-loader="D. Patel">
+                <span class="ri-av av-5">DP</span>
+                <div class="ri-info">
+                  <div class="ri-name">D. Patel</div>
+                  <div class="ri-task">D-09 · FedEx Freight · 10/14 pallets</div>
+                </div>
+                <span class="ri-stat busy">Loading</span>
+              </div>
+              <div class="roster-item" data-loader="Y. Kim">
+                <span class="ri-av av-6">YK</span>
+                <div class="ri-info">
+                  <div class="ri-name">Y. Kim</div>
+                  <div class="ri-task">D-11 · Sysco · 19/24 pallets</div>
+                </div>
+                <span class="ri-stat busy">Loading</span>
+              </div>
+              <div class="roster-item" data-loader="P. Castillo">
+                <span class="ri-av av-2" style="opacity: 0.6;">PC</span>
+                <div class="ri-info">
+                  <div class="ri-name" style="opacity: 0.7;">P. Castillo</div>
+                  <div class="ri-task">On break · back at 09:30</div>
+                </div>
+                <span class="ri-stat break">On break</span>
+              </div>
+              <div class="roster-item" data-loader="K. Reeves" style="background: var(--brand-soft);">
+                <span class="ri-av" style="background: linear-gradient(135deg, #ef4444, #f87171);">KR</span>
+                <div class="ri-info">
+                  <div class="ri-name">K. Reeves <span style="font-weight: 500; color: var(--brand); font-size: 11px;">· you</span></div>
+                  <div class="ri-task">Supervising · covering D-12 overrun</div>
+                </div>
+                <span class="ri-stat busy">Covering</span>
+              </div>
+            </div>
+          </section>
+
+        </div><!-- /.lm-grid -->
+
+        <!-- Backlog table -->
+        <section class="card" id="backlogCard" style="margin-bottom: 18px;">
+          <header class="card-head">
+            <div class="titles">
+              <h2 class="card-title">Backlog — loads waiting to start</h2>
+              <p class="card-sub">3 loads queued · sort by priority or wait time</p>
+            </div>
+            <div class="right">
+              <button class="btn sm ghost" id="autoAssignBtn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                Auto-assign next loader
+              </button>
+            </div>
+          </header>
+          <div style="overflow-x: auto;">
+            <table class="backlog" id="backlogTable">
+              <thead>
+                <tr>
+                  <th data-sort="dock" style="width: 90px;">Dock <span class="sort-arrow">▼</span></th>
+                  <th data-sort="carrier" style="min-width: 200px;">Carrier / Driver <span class="sort-arrow">▼</span></th>
+                  <th data-sort="ref">PO / Ref <span class="sort-arrow">▼</span></th>
+                  <th data-sort="pallets" style="width: 110px;">Pallets <span class="sort-arrow">▼</span></th>
+                  <th data-sort="wait" style="width: 110px;">Waiting <span class="sort-arrow">▼</span></th>
+                  <th data-sort="priority" style="width: 110px;">Priority <span class="sort-arrow">▼</span></th>
+                  <th style="width: 220px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="backlogBody">
+                <tr data-dock="D-08" data-carrier="C.H. Robinson" data-driver="L. Vasquez" data-ref="LD-44612" data-pallets="16" data-wait="0:18" data-priority="high">
+                  <td><b>D-08</b></td>
+                  <td><div class="driver-cell"><span class="av av-1">CR</span><div><div class="nm">L. Vasquez</div><div class="sub">C.H. Robinson</div></div></div></td>
+                  <td><span class="ref-mono">LD-44612</span></td>
+                  <td>16 pallets</td>
+                  <td><b>0:18</b></td>
+                  <td><span class="priority-pill high">High · hot load</span></td>
+                  <td><button class="btn sm" data-bl-act="reassign">Assign loader</button> <button class="btn sm primary" data-bl-act="start">Start now</button></td>
+                </tr>
+                <tr data-dock="D-02" data-carrier="XPO Logistics" data-driver="T. Reyes" data-ref="LD-44588" data-pallets="22" data-wait="0:08" data-priority="med">
+                  <td><b>D-02</b></td>
+                  <td><div class="driver-cell"><span class="av av-3">XP</span><div><div class="nm">T. Reyes</div><div class="sub">XPO Logistics</div></div></div></td>
+                  <td><span class="ref-mono">LD-44588</span></td>
+                  <td>22 pallets</td>
+                  <td><b>0:08</b></td>
+                  <td><span class="priority-pill med">Medium</span></td>
+                  <td><button class="btn sm" data-bl-act="reassign">Assign loader</button> <button class="btn sm primary" data-bl-act="start">Start now</button></td>
+                </tr>
+                <tr data-dock="D-10" data-carrier="Walmart Transport" data-driver="A. Flores" data-ref="REC-WM-T16" data-pallets="28" data-wait="0:03" data-priority="low">
+                  <td><b>D-10</b></td>
+                  <td><div class="driver-cell"><span class="av av-2">WT</span><div><div class="nm">A. Flores</div><div class="sub">Walmart Transport</div></div></div></td>
+                  <td><span class="ref-mono">REC-WM-T16</span></td>
+                  <td>28 pallets</td>
+                  <td><b>0:03</b></td>
+                  <td><span class="priority-pill low">Low · early</span></td>
+                  <td><button class="btn sm" data-bl-act="reassign">Assign loader</button> <button class="btn sm primary" data-bl-act="start">Start now</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Equipment status -->
+        <section class="card" id="equipCard" style="margin-bottom: 18px;">
+          <header class="card-head">
+            <div class="titles">
+              <h2 class="card-title">Equipment status</h2>
+              <p class="card-sub">Forklifts, pallet jacks, and scanners across the floor</p>
+            </div>
+            <div class="right">
+              <button class="btn sm ghost">Maintenance log</button>
+            </div>
+          </header>
+          <div class="equip-grid">
+
+            <div class="equip-card">
+              <div class="eq-head">
+                <div>
+                  <div class="eq-name">Forklifts</div>
+                  <div class="eq-sub">3 of 5 in use · 1 in maintenance</div>
+                </div>
+                <div class="eq-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="9" height="6" rx="1"/><path d="M12 17h6l3-3v-3h-9"/><circle cx="6" cy="20" r="2"/><circle cx="18" cy="20" r="2"/><line x1="3" y1="6" x2="3" y2="11"/></svg>
+                </div>
+              </div>
+              <div class="eq-bar">
+                <span style="width: 50px;">In use</span>
+                <div class="eq-bar-track"><div class="eq-bar-fill" style="width: 60%;"></div></div>
+                <span style="font-weight: 700; color: var(--text-primary);">3 / 5</span>
+              </div>
+              <div class="eq-units">
+                <div class="eq-unit busy">FL-1</div>
+                <div class="eq-unit busy">FL-2</div>
+                <div class="eq-unit busy">FL-3</div>
+                <div class="eq-unit">FL-4</div>
+                <div class="eq-unit maint">FL-5</div>
+                <div class="eq-unit" style="visibility: hidden;"></div>
+              </div>
+            </div>
+
+            <div class="equip-card">
+              <div class="eq-head">
+                <div>
+                  <div class="eq-name">Pallet jacks</div>
+                  <div class="eq-sub">8 of 12 in use · 4 available</div>
+                </div>
+                <div class="eq-icon" style="color: var(--success); background: var(--success-soft); border-color: rgba(22,163,74,0.18);">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </div>
+              </div>
+              <div class="eq-bar">
+                <span style="width: 50px;">In use</span>
+                <div class="eq-bar-track"><div class="eq-bar-fill warn" style="width: 67%;"></div></div>
+                <span style="font-weight: 700; color: var(--text-primary);">8 / 12</span>
+              </div>
+              <div class="eq-units">
+                <div class="eq-unit busy">PJ-1</div>
+                <div class="eq-unit busy">PJ-2</div>
+                <div class="eq-unit busy">PJ-3</div>
+                <div class="eq-unit busy">PJ-4</div>
+                <div class="eq-unit busy">PJ-5</div>
+                <div class="eq-unit busy">PJ-6</div>
+                <div class="eq-unit busy">PJ-7</div>
+                <div class="eq-unit busy">PJ-8</div>
+                <div class="eq-unit">PJ-9</div>
+                <div class="eq-unit">P-10</div>
+                <div class="eq-unit">P-11</div>
+                <div class="eq-unit">P-12</div>
+              </div>
+            </div>
+
+            <div class="equip-card">
+              <div class="eq-head">
+                <div>
+                  <div class="eq-name">Handheld scanners</div>
+                  <div class="eq-sub">6 of 8 paired · 1 low battery</div>
+                </div>
+                <div class="eq-icon" style="color: var(--purple); background: var(--purple-soft); border-color: rgba(124,58,237,0.18);">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </div>
+              </div>
+              <div class="eq-bar">
+                <span style="width: 50px;">In use</span>
+                <div class="eq-bar-track"><div class="eq-bar-fill" style="width: 75%;"></div></div>
+                <span style="font-weight: 700; color: var(--text-primary);">6 / 8</span>
+              </div>
+              <div class="eq-units">
+                <div class="eq-unit busy">SC-1</div>
+                <div class="eq-unit busy">SC-2</div>
+                <div class="eq-unit busy">SC-3</div>
+                <div class="eq-unit busy">SC-4</div>
+                <div class="eq-unit busy">SC-5</div>
+                <div class="eq-unit busy">SC-6</div>
+                <div class="eq-unit">SC-7</div>
+                <div class="eq-unit" style="background: var(--warning); color: #fff; border-color: var(--warning);">SC-8</div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Recent completions -->
+        <section class="card" id="completionsCard">
+          <header class="card-head">
+            <div class="titles">
+              <h2 class="card-title">Recent completions</h2>
+              <p class="card-sub">Last 8 loads finished today</p>
+            </div>
+            <div class="right">
+              <button class="btn sm ghost">View full log</button>
+            </div>
+          </header>
+          <div class="completions-list" id="completionsList">
+
+            <div class="completion-item" data-co="LD-D02" data-driver="L. Vasquez" data-carrier="C.H. Robinson">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-02</b> · C.H. Robinson · L. Vasquez<span class="co-sub">LD-44480 · loaded by D. Patel · BOL signed · 22 pallets</span></div>
+              <div class="co-stats"><b>0:43</b>completed 08:24</div>
+            </div>
+
+            <div class="completion-item" data-co="LD-D08" data-driver="D. Ortiz" data-carrier="JB Hunt">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-08</b> · JB Hunt · D. Ortiz<span class="co-sub">PO-998644 · loaded by Y. Kim · 28 pallets</span></div>
+              <div class="co-stats"><b>1:12</b>completed 08:48</div>
+            </div>
+
+            <div class="completion-item" data-co="LD-D06" data-driver="N. Singh" data-carrier="Knight Transport">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-06</b> · Knight Transport · N. Singh<span class="co-sub">PO-771188 · loaded by M. Tran · 18 pallets</span></div>
+              <div class="co-stats"><b>0:51</b>completed 08:14</div>
+            </div>
+
+            <div class="completion-item" data-co="LD-D10" data-driver="K. Bauer" data-carrier="FedEx Freight">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-10</b> · FedEx Freight · K. Bauer<span class="co-sub">LTL-228780 · loaded by J. Lin · 12 pallets</span></div>
+              <div class="co-stats"><b>0:38</b>completed 07:52</div>
+            </div>
+
+            <div class="completion-item" data-co="LD-D03" data-driver="A. Park" data-carrier="Schneider">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-03</b> · Schneider · A. Park<span class="co-sub">LD-44260 · loaded by S. Hayes · 32 pallets</span></div>
+              <div class="co-stats"><b>1:08</b>completed 07:44</div>
+            </div>
+
+            <div class="completion-item" data-co="LD-D11" data-driver="J. Whitaker" data-carrier="Sysco">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-11</b> · Sysco · J. Whitaker<span class="co-sub">LD-44488 · loaded by A. Cole · 20 pallets</span></div>
+              <div class="co-stats"><b>0:46</b>completed 07:28</div>
+            </div>
+
+            <div class="completion-item" data-co="LD-D09" data-driver="M. Hill" data-carrier="XPO Logistics">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-09</b> · XPO Logistics · M. Hill<span class="co-sub">LD-44440 · loaded by D. Patel · 24 pallets</span></div>
+              <div class="co-stats"><b>0:52</b>completed 07:11</div>
+            </div>
+
+            <div class="completion-item" data-co="LD-D05" data-driver="R. Martinez" data-carrier="Walmart Transport">
+              <div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="co-text"><b>D-05</b> · Walmart Transport · R. Martinez<span class="co-sub">PO-998580 · loaded by Y. Kim · 30 pallets</span></div>
+              <div class="co-stats"><b>0:58</b>completed 06:54</div>
+            </div>
+
+          </div>
+        </section>
+
+      </div><!-- /.page -->
+    </main>
+  </div><!-- /.app -->
+
+  <!-- ============== LOAD DETAIL DRAWER ============== -->
+  <aside class="drawer wide" id="detailDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M6 7h6M6 11h12"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title" id="ldTitle">Load LD-D01 · Walmart Transport</h3>
+        <p class="drawer-sub" id="ldSub">D-01 · loaded by M. Tran · 14 of 22 pallets · 32m elapsed</p>
+      </div>
+      <span class="status-pill s-loading" id="ldStatus" style="margin-right: 10px;"><span class="pulse"></span>Loading</span>
+      <button class="drawer-close" id="ldClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+
+      <!-- Live status verify card -->
+      <div class="form-section">
+        <div class="form-section-title">Live status</div>
+        <div class="verify-card">
+          <div class="verify-row ok">
+            <div class="vr-l">Started</div>
+            <div class="vr-v" id="ldStarted">07:52 · driver checked in 07:46</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">Loader</div>
+            <div class="vr-v" id="ldLoader">M. Tran · solo · forklift FL-1, scanner SC-3</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">Equipment</div>
+            <div class="vr-v" id="ldEquip">53′ Reefer · trailer JBH-44820 · seal SL-880241 · plug-in active</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">Temp</div>
+            <div class="vr-v" id="ldTemp">Set 34°F · actual 33.8°F · last read 30s ago</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pallet checklist -->
+      <div class="form-section">
+        <div class="form-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Pallet checklist</span>
+          <span style="font-size: 11.5px; font-weight: 600; color: var(--text-tertiary); text-transform: none; letter-spacing: 0;">14 loaded · 1 in progress · 7 staged · 0 problems</span>
+        </div>
+        <div class="pallet-grid" id="palletGrid">
+          <!-- 14 done -->
+          <div class="pallet-cell done">1</div>
+          <div class="pallet-cell done">2</div>
+          <div class="pallet-cell done">3</div>
+          <div class="pallet-cell done">4</div>
+          <div class="pallet-cell done">5</div>
+          <div class="pallet-cell done">6</div>
+          <div class="pallet-cell done">7</div>
+          <div class="pallet-cell done">8</div>
+          <div class="pallet-cell done">9</div>
+          <div class="pallet-cell done">10</div>
+          <div class="pallet-cell done">11</div>
+          <div class="pallet-cell done">12</div>
+          <div class="pallet-cell done">13</div>
+          <div class="pallet-cell done">14</div>
+          <!-- 1 active -->
+          <div class="pallet-cell active">15</div>
+          <!-- 7 staged -->
+          <div class="pallet-cell">16</div>
+          <div class="pallet-cell">17</div>
+          <div class="pallet-cell">18</div>
+          <div class="pallet-cell">19</div>
+          <div class="pallet-cell">20</div>
+          <div class="pallet-cell">21</div>
+          <div class="pallet-cell">22</div>
+        </div>
+        <div style="display: flex; gap: 14px; font-size: 11.5px; color: var(--text-tertiary); padding-top: 4px;">
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: var(--success); border-radius: 2px;"></span>Loaded</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: var(--brand); border-radius: 2px;"></span>In progress</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 2px;"></span>Staged</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: var(--danger-soft); border: 1px solid var(--danger); border-radius: 2px;"></span>Problem</span>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="form-section">
+        <div class="form-section-title">Timeline</div>
+        <div style="display: flex; flex-direction: column; gap: 0;">
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">07:46</div>
+            <div style="font-size: 13px;"><b>Driver checked in at gate</b> — by Daniel Reyes</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">07:48</div>
+            <div style="font-size: 13px;">Driver arrived at <b>D-01</b> — gate-to-dock 2 minutes</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">07:52</div>
+            <div style="font-size: 13px;">Loading started — assigned to <b>M. Tran</b> · forklift FL-1</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">08:14</div>
+            <div style="font-size: 13px;">Pallets <b>1–7</b> loaded · plug-in temp confirmed at 34°F</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">08:38</div>
+            <div style="font-size: 13px;">Pallets <b>8–14</b> loaded · half mark reached</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 10px 0;">
+            <div style="font-size: 11.5px; color: var(--brand); font-variant-numeric: tabular-nums; font-weight: 700;">Now</div>
+            <div style="font-size: 13px; color: var(--brand);"><b>Pallet 15 in progress</b> · 7 remaining · ETA finish 11:18</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Photos -->
+      <div class="form-section">
+        <div class="form-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Photos &amp; documents</span>
+          <span style="font-size: 11.5px; font-weight: 600; color: var(--text-tertiary); text-transform: none; letter-spacing: 0;">3 attached</span>
+        </div>
+        <div class="photo-grid">
+          <div class="photo-cell has-img" style="background-image: linear-gradient(135deg, #4a5b7a, #2d3a52); color: #c4d2ff;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 16l4-4 4 4 6-6 4 4M9 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/></svg>
+            <div style="position: absolute; bottom: 4px; left: 4px; right: 4px; font-size: 9.5px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">Trailer interior</div>
+          </div>
+          <div class="photo-cell has-img" style="background-image: linear-gradient(135deg, #8b6f47, #5e4c30); color: #efe1c8;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 16l4-4 4 4 6-6 4 4"/></svg>
+            <div style="position: absolute; bottom: 4px; left: 4px; right: 4px; font-size: 9.5px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">Pallets staged</div>
+          </div>
+          <div class="photo-cell has-img" style="background-image: linear-gradient(135deg, #5a6b58, #3d4a3d); color: #cee0cf;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/></svg>
+            <div style="position: absolute; bottom: 4px; left: 4px; right: 4px; font-size: 9.5px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">Seal SL-880241</div>
+          </div>
+          <div class="photo-cell add">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span style="font-size: 10px; font-weight: 600;">Add photo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="form-section">
+        <div class="form-section-title">Notes from the loader</div>
+        <div style="background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+          <span style="color: var(--text-tertiary); font-size: 11.5px;">M. Tran · 08:24</span><br>
+          Pallets 6 and 9 had to be re-stacked — corner damage on a couple of cases. All accounted for, no shortage. Reefer holding temp.
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="drawer-foot">
+      <button class="btn danger-ghost" id="ldFlagIssue">Flag issue</button>
+      <div class="right-actions">
+        <button class="btn ghost" id="ldReassign">Reassign loader</button>
+        <button class="btn primary" id="ldComplete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Mark complete
+        </button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== ASSIGN LOADER DRAWER ============== -->
+  <aside class="drawer" id="assignDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title">Assign loader · <span id="adDockId">D-08</span></h3>
+        <p class="drawer-sub" id="adSub">C.H. Robinson · L. Vasquez · 16 pallets · waiting 18m</p>
+      </div>
+      <button class="drawer-close" id="adClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+      <div class="form-section">
+        <div class="form-section-title">Available loaders</div>
+        <p style="margin: 0; font-size: 12.5px; color: var(--text-tertiary);">Loaders ranked by current workload. <b>Y. Kim</b> finishing in ~5m.</p>
+        <div style="display: flex; flex-direction: column; gap: 8px;" id="adLoaderList">
+          <button type="button" class="radio-card on" data-assign-loader="Y. Kim">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="ri-av av-6" style="width: 32px; height: 32px; font-size: 11px; flex-shrink: 0;">YK</span>
+              <span style="text-align: left; flex: 1;"><span class="lbl">Y. Kim</span><br><span class="sub">Finishing D-11 · ~5m to free</span></span>
+              <span class="ri-stat busy" style="font-size: 9px; padding: 2px 6px;">Best fit</span>
+            </div>
+          </button>
+          <button type="button" class="radio-card" data-assign-loader="J. Lin">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="ri-av av-2" style="width: 32px; height: 32px; font-size: 11px; flex-shrink: 0;">JL</span>
+              <span style="text-align: left; flex: 1;"><span class="lbl">J. Lin</span><br><span class="sub">D-03 · 7/26 pallets · 19 remaining</span></span>
+            </div>
+          </button>
+          <button type="button" class="radio-card" data-assign-loader="P. Castillo">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="ri-av av-2" style="width: 32px; height: 32px; font-size: 11px; flex-shrink: 0; opacity: 0.6;">PC</span>
+              <span style="text-align: left; flex: 1;"><span class="lbl">P. Castillo</span><br><span class="sub">On break · back at 09:30</span></span>
+              <span class="ri-stat break" style="font-size: 9px; padding: 2px 6px;">On break</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Or pull from another shift</div>
+        <p style="margin: 0; font-size: 12.5px; color: var(--text-tertiary);">Call in early-shift loader for overlap (incurs OT).</p>
+        <button class="btn ghost" style="align-self: flex-start;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Request swing-shift early start
+        </button>
+      </div>
+    </div>
+    <footer class="drawer-foot">
+      <button class="btn ghost" id="adCancel">Cancel</button>
+      <div class="right-actions">
+        <button class="btn primary" id="adConfirm">Assign &amp; notify loader</button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== ISSUE DRAWER ============== -->
+  <aside class="drawer" id="issueDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile" style="background: var(--danger-soft); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(239,68,68,0.18);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title">Flag issue on this load</h3>
+        <p class="drawer-sub" id="issueSub">For LD-D12 · Schneider · D-12 · K. Reeves covering</p>
+      </div>
+      <button class="drawer-close" id="isClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+      <div class="form-section">
+        <div class="form-section-title">Issue type</div>
+        <div class="grid-2">
+          <button type="button" class="radio-card on" data-issue="damage">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></span>
+            <span class="lbl">Pallet damage</span><span class="sub">Cases damaged in transit</span>
+          </button>
+          <button type="button" class="radio-card" data-issue="shortage">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
+            <span class="lbl">Pallet shortage</span><span class="sub">Count doesn't match BOL</span>
+          </button>
+          <button type="button" class="radio-card" data-issue="equipment">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg></span>
+            <span class="lbl">Equipment failure</span><span class="sub">Forklift / pallet jack down</span>
+          </button>
+          <button type="button" class="radio-card" data-issue="overrun">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="lbl">Loading overrun</span><span class="sub">Past scheduled window</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Severity</div>
+        <div class="grid-3">
+          <button type="button" class="radio-card on" data-severity="info">
+            <span class="lbl" style="color: var(--info);">Info</span><span class="sub">FYI · log only</span>
+          </button>
+          <button type="button" class="radio-card" data-severity="warn">
+            <span class="lbl" style="color: var(--warning);">Warning</span><span class="sub">Notify supervisor</span>
+          </button>
+          <button type="button" class="radio-card" data-severity="critical">
+            <span class="lbl" style="color: var(--danger);">Critical</span><span class="sub">Hold load · escalate</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Affected pallets (optional)</div>
+        <div class="field">
+          <input type="text" class="input" placeholder="e.g. 6, 9, 14"/>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Details</div>
+        <div class="field">
+          <textarea class="input" rows="4" placeholder="What happened? Be specific — this becomes part of the audit trail."></textarea>
+        </div>
+      </div>
+    </div>
+    <footer class="drawer-foot">
+      <button class="btn ghost" id="isCancel">Cancel</button>
+      <div class="right-actions">
+        <button class="btn danger" id="isSubmit">Submit issue &amp; notify</button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== MARK COMPLETE MODAL ============== -->
+  <div class="modal" id="completeModal" aria-hidden="true">
+    <header class="modal-head">
+      <div class="icon-tile success">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div>
+        <h3 class="modal-title">Mark load complete</h3>
+        <p class="modal-sub">Confirm pallet count, capture loader signature, and release for check-out.</p>
+      </div>
+      <button class="drawer-close" id="cmClose" aria-label="Close" style="margin-left: auto;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="modal-body">
+      <div class="modal-preview">
+        <div class="mp-row"><span class="mp-l">Load</span><span class="ref-mono" id="cmRef">PO-998612</span></div>
+        <div class="mp-row"><span class="mp-l">Carrier</span><span><b id="cmCarrier">Walmart Transport</b></span></div>
+        <div class="mp-row"><span class="mp-l">Dock</span><span><b id="cmDock">D-01</b></span></div>
+        <div class="mp-row"><span class="mp-l">Loader</span><span id="cmLoader">M. Tran</span></div>
+        <div class="mp-row"><span class="mp-l">Total time</span><span id="cmTotal"><b>0h 47m</b></span></div>
+        <div class="mp-row"><span class="mp-l">Pallets</span><span id="cmPallets">22 of 22 loaded</span></div>
+      </div>
+
+      <div class="grid-2" style="margin-top: 14px;">
+        <div class="field">
+          <label>Final pallet count</label>
+          <input type="text" class="input" id="cmCount" value="22"/>
+        </div>
+        <div class="field">
+          <label>Seal #</label>
+          <input type="text" class="input" id="cmSeal" value="SL-880241"/>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top: 12px;">
+        <label>Loader signature</label>
+        <div class="signature-pad" id="cmSig">Tap to capture loader signature</div>
+      </div>
+      <div class="field" style="margin-top: 12px;">
+        <label>Notes (optional)</label>
+        <textarea class="input" rows="2" placeholder="Any final notes — damages, restacks, temp readings, etc."></textarea>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn ghost" id="cmDismiss">Cancel</button>
+      <button class="btn success" id="cmConfirm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Mark complete &amp; release
+      </button>
+    </footer>
+  </div>
+
+  <!-- ============== NEW LOAD DRAWER ============== -->
+  <aside class="drawer" id="newLoadDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title">Start new load</h3>
+        <p class="drawer-sub">Manually open a load · for ad-hoc moves not from check-in</p>
+      </div>
+      <button class="drawer-close" id="nlClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+      <div class="form-section">
+        <div class="form-section-title">Load details</div>
+        <div class="grid-2">
+          <div class="field"><label>Dock</label>
+            <select class="select"><option>D-02 (idle)</option><option>D-08 (idle)</option><option>D-10 (reserved)</option></select>
+          </div>
+          <div class="field"><label>Direction</label>
+            <select class="select"><option>Inbound</option><option>Outbound</option><option>Cross-dock</option></select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Carrier</label><input type="text" class="input" placeholder="e.g. Walmart Transport"/></div>
+          <div class="field"><label>PO / BOL #</label><input type="text" class="input" placeholder="PO-998620"/></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Pallet count</label><input type="text" class="input" placeholder="e.g. 22"/></div>
+          <div class="field"><label>Equipment</label>
+            <select class="select"><option>53′ Trailer</option><option>48′ Trailer</option><option>Reefer</option><option>Box truck</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Loader</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button type="button" class="radio-card on">
+            <span class="lbl">Auto-assign best fit</span>
+            <span class="sub">Picks loader by current workload</span>
+          </button>
+          <button type="button" class="radio-card">
+            <span class="lbl">Pick manually</span>
+            <span class="sub">Choose from roster</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Notes</div>
+        <div class="field">
+          <textarea class="input" rows="3" placeholder="Anything the loader should know."></textarea>
+        </div>
+      </div>
+    </div>
+    <footer class="drawer-foot">
+      <button class="btn ghost" id="nlCancel">Cancel</button>
+      <div class="right-actions">
+        <button class="btn primary" id="nlConfirm">Start load</button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== SCRIM ============== -->
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============== TOAST STACK ============== -->
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ============== POPMENUS ============== -->
+  <div class="popmenu" id="notifPop" role="menu" style="min-width: 320px;">
+    <div style="padding: 8px 10px 6px; display: flex; align-items: center; gap: 8px;">
+      <b style="font-size: 13px;">Notifications</b>
+      <span style="font-size: 11px; color: var(--text-tertiary); margin-left: auto;">3 new</span>
+    </div>
+    <button class="pm-item" data-notif="overrun">
+      <span class="pm-ic" style="background: var(--danger-soft); color: var(--danger);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span style="text-align: left;"><b style="font-size: 13px;">D-12 overrun · 26m</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Schneider · K. Reeves covering</span></span>
+    </button>
+    <button class="pm-item" data-notif="backlog">
+      <span class="pm-ic" style="background: var(--warning-soft); color: var(--warning);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span>
+      <span style="text-align: left;"><b style="font-size: 13px;">3 in backlog</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">D-08 · L. Vasquez waiting 18m</span></span>
+    </button>
+    <button class="pm-item" data-notif="battery">
+      <span class="pm-ic" style="background: var(--info-soft); color: var(--info);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="13" x2="23" y2="11"/></svg></span>
+      <span style="text-align: left;"><b style="font-size: 13px;">SC-8 battery low</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Scanner — swap recommended</span></span>
+    </button>
+    <div style="border-top: 1px solid var(--border-soft); margin: 6px 4px 2px;"></div>
+    <button class="pm-item" data-notif="all" style="justify-content: center; color: var(--brand); font-weight: 600;">View all notifications</button>
+  </div>
+
+  <div class="popmenu" id="orgPop" role="menu" style="min-width: 280px;">
+    <div style="padding: 8px 10px 6px;"><b style="font-size: 11.5px; color: var(--text-tertiary); letter-spacing: 0.04em; text-transform: uppercase;">Switch organization</b></div>
+    <button class="pm-item" data-org="bobhaul">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #5b8cff, #c47bff); color: #fff; font-weight: 800;">B</span>
+      <span style="text-align: left; flex: 1;"><b style="font-size: 13px;">Bobhaul</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Dallas Distribution Hub</span></span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </button>
+    <button class="pm-item" data-org="walmart">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; font-weight: 800;">W</span>
+      <span style="text-align: left;"><b style="font-size: 13px;">Walmart Transport</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Carrier portal access</span></span>
+    </button>
+    <button class="pm-item" data-org="knight">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #fff; font-weight: 800;">K</span>
+      <span style="text-align: left;"><b style="font-size: 13px;">Knight Logistics</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Carrier portal access</span></span>
+    </button>
+    <div style="border-top: 1px solid var(--border-soft); margin: 6px 4px 2px;"></div>
+    <button class="pm-item" id="orgManage" style="color: var(--text-secondary);">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg></span>
+      Manage organizations
+    </button>
+  </div>
+
+  <div class="popmenu" id="userPop" role="menu">
+    <div style="padding: 10px 10px 8px; display: flex; gap: 10px; align-items: center;">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; font-weight: 700; width: 32px; height: 32px;">KR</span>
+      <div><b style="font-size: 13px;">K. Reeves</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Shift supervisor · Day shift</span></div>
+    </div>
+    <div style="border-top: 1px solid var(--border-soft); margin: 4px 4px 2px;"></div>
+    <button class="pm-item" data-user-act="profile">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/></svg></span>
+      Your profile
+    </button>
+    <button class="pm-item" data-user-act="prefs">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg></span>
+      Preferences
+    </button>
+    <button class="pm-item" data-user-act="shift">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      End shift &amp; hand off
+    </button>
+    <div style="border-top: 1px solid var(--border-soft); margin: 4px 4px 2px;"></div>
+    <button class="pm-item" data-user-act="signout" style="color: var(--danger);">
+      <span class="pm-ic" style="background: var(--danger-soft); color: var(--danger);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+      Sign out
+    </button>
+  </div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ============== TOAST SYSTEM ============== */
+  const toastStack = document.getElementById('toastStack');
+  const toastIcons = {
+    success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    warn:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+  function showToast(title, sub, kind, ms) {
+    kind = kind || 'info';
+    ms = ms || 3500;
+    const el = document.createElement('div');
+    el.className = 'toast ' + kind;
+    el.innerHTML = '<span class="ti">' + toastIcons[kind] + '</span>' +
+      '<div class="body"><div class="title">' + title + '</div>' +
+      (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>' +
+      '<button class="x" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+    toastStack.appendChild(el);
+    function dismiss() {
+      el.classList.add('exiting');
+      setTimeout(() => el.remove(), 220);
+    }
+    el.querySelector('.x').addEventListener('click', dismiss);
+    setTimeout(dismiss, ms);
+  }
+
+  function flashElement(el) {
+    if (!el) return;
+    el.classList.remove('row-flash');
+    void el.offsetWidth;
+    el.classList.add('row-flash');
+  }
+
+  /* ============== SIDEBAR — collapse + nav ============== */
+  const app = document.querySelector('.app');
+  const collapseBtn = document.querySelector('.sidebar-collapse');
+  if (collapseBtn) collapseBtn.addEventListener('click', () => app.classList.toggle('sidebar-collapsed'));
+  document.querySelectorAll('.sidebar .nav-item:not(.expander)').forEach(item => {
+    item.addEventListener('click', () => {
+      if (item.classList.contains('active')) return;
+      const span = item.querySelector('span:not(.nav-icon):not(.nav-badge)');
+      const label = (span && span.textContent || '').trim();
+      if (label && label !== 'Load Management') showToast('Navigating', 'Would open ' + label, 'info', 1800);
+    });
+  });
+
+  /* ============== LOGO + breadcrumb ============== */
+  const logo = document.querySelector('.sidebar-logo');
+  if (logo) logo.addEventListener('click', () => showToast('Bobhaul', 'Going home', 'info', 1500));
+  document.querySelectorAll('.breadcrumb .crumb:not(.current)').forEach(c => {
+    c.addEventListener('click', () => showToast('Navigate', 'Up one level: ' + c.textContent, 'info', 1500));
+  });
+
+  /* ============== POPMENU SYSTEM ============== */
+  const POPS = { notifBell: 'notifPop', orgSelect: 'orgPop', userChip: 'userPop' };
+  let openPop = null;
+  function placePop(triggerEl, popEl) {
+    const r = triggerEl.getBoundingClientRect();
+    popEl.style.left = '0px'; popEl.style.top = '0px';
+    popEl.classList.add('is-open');
+    const pr = popEl.getBoundingClientRect();
+    let left = r.right - pr.width;
+    if (left < 8) left = r.left;
+    if (left + pr.width > window.innerWidth - 8) left = window.innerWidth - pr.width - 8;
+    popEl.style.left = left + 'px';
+    popEl.style.top = (r.bottom + 6) + 'px';
+  }
+  function closePop() { if (openPop) { openPop.classList.remove('is-open'); openPop = null; } }
+  Object.entries(POPS).forEach(([trigId, popId]) => {
+    const trig = document.getElementById(trigId);
+    const pop = document.getElementById(popId);
+    if (!trig || !pop) return;
+    trig.addEventListener('click', e => {
+      e.stopPropagation();
+      if (openPop === pop) { closePop(); return; }
+      closePop();
+      placePop(trig, pop);
+      openPop = pop;
+    });
+  });
+  document.addEventListener('click', e => { if (openPop && !openPop.contains(e.target)) closePop(); });
+
+  // Notif menu items
+  document.querySelectorAll('#notifPop .pm-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const k = item.dataset.notif;
+      closePop();
+      if (k === 'overrun') showToast('D-12 overrun', 'Schneider · 26m past target — opening detail', 'warn', 2400);
+      else if (k === 'backlog') showToast('Backlog', '3 loads waiting · longest 18m (D-08)', 'warn', 2400);
+      else if (k === 'battery') showToast('Scanner SC-8', 'Battery low · swap recommended', 'info', 2400);
+      else showToast('Notifications', 'Showing all 12', 'info', 1800);
+    });
+  });
+  document.querySelectorAll('#orgPop .pm-item[data-org]').forEach(item => {
+    item.addEventListener('click', () => {
+      closePop();
+      const o = item.querySelector('b').textContent;
+      showToast('Switching organization', 'Now viewing ' + o, 'info', 2000);
+    });
+  });
+  document.getElementById('orgManage').addEventListener('click', () => { closePop(); showToast('Manage organizations', 'Settings opening…', 'info', 1500); });
+  document.querySelectorAll('#userPop .pm-item[data-user-act]').forEach(item => {
+    item.addEventListener('click', () => {
+      closePop();
+      const a = item.dataset.userAct;
+      if (a === 'signout') showToast('Signed out', 'See you on the next shift', 'info', 1800);
+      else if (a === 'shift') showToast('Hand-off prepared', 'Notes queued for swing supervisor', 'success', 2200);
+      else if (a === 'profile') showToast('Profile', 'Opening your profile', 'info', 1500);
+      else showToast('Preferences', 'Opening preferences', 'info', 1500);
+    });
+  });
+
+  /* ============== KPI clicks ============== */
+  document.querySelectorAll('.kpi').forEach(k => {
+    k.addEventListener('click', () => {
+      const map = {
+        active:  ['Active loads', '8 in progress · 5 inbound, 3 outbound'],
+        pallets: ['Pallets moved today', '412 total · 38 ahead of yesterday'],
+        time:    ['Avg load time', '47m · target 50m · 6m under'],
+        loaders: ['Loaders on shift', '6 active · 1 on break · 0 off'],
+        backlog: ['Backlog', '3 loads waiting · D-08 longest at 18m']
+      };
+      const m = map[k.dataset.kpi] || ['KPI', 'Drilling in…'];
+      showToast(m[0], m[1], 'info', 2000);
+    });
+  });
+
+  /* ============== TOOLBAR ============== */
+  function spinIcon(btn) {
+    const svg = btn.querySelector('svg');
+    if (!svg) return;
+    svg.style.transition = 'transform 600ms ease';
+    svg.style.transform = 'rotate(360deg)';
+    setTimeout(() => { svg.style.transition = ''; svg.style.transform = ''; }, 700);
+  }
+  document.getElementById('refreshBtn').addEventListener('click', e => {
+    spinIcon(e.currentTarget);
+    showToast('Synced', 'Loading floor up to date', 'success', 1600);
+  });
+  document.getElementById('exportBtn').addEventListener('click', () => showToast('Shift report exported', 'CSV downloaded · 14 completed loads', 'info', 2000));
+  document.getElementById('shiftFilter').addEventListener('change', e => {
+    const v = e.currentTarget.value;
+    showToast('Shift filter changed', 'Now viewing ' + v + ' shift', 'info', 1800);
+  });
+  document.getElementById('dockFilter').addEventListener('change', e => {
+    const v = e.currentTarget.options[e.currentTarget.selectedIndex].text;
+    showToast('Dock filter', 'Showing: ' + v, 'info', 1800);
+  });
+  document.getElementById('newLoadBtn').addEventListener('click', () => openOverlay('newLoadDrawer'));
+
+  /* ============== SCRIM + close-everything ============== */
+  const scrim = document.getElementById('scrim');
+  const ALL_OVERLAYS = ['detailDrawer', 'assignDrawer', 'issueDrawer', 'completeModal', 'newLoadDrawer'];
+  function closeAllOverlays() {
+    ALL_OVERLAYS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.remove('open'); el.setAttribute('aria-hidden', 'true'); }
+    });
+    scrim.classList.remove('open');
+    closePop();
+  }
+  function openOverlay(id) {
+    closePop();
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('open');
+    el.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+  }
+  scrim.addEventListener('click', closeAllOverlays);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllOverlays(); });
+
+  /* ============== LOAD CARDS ============== */
+  function openDetailFromCard(card) {
+    const id = card.dataset.loadId;
+    const carrier = card.dataset.carrier;
+    const dock = card.dataset.dock;
+    const loader = card.dataset.loader;
+    const status = card.dataset.status;
+    const pct = (card.querySelector('.pct') || {}).textContent || '';
+
+    document.getElementById('ldTitle').textContent = 'Load ' + id + ' · ' + carrier;
+    document.getElementById('ldSub').textContent = dock + ' · loaded by ' + loader + ' · ' + pct + ' pallets';
+
+    // Set status pill
+    const stEl = document.getElementById('ldStatus');
+    stEl.className = 'status-pill';
+    if (status === 'late') { stEl.classList.add('s-late'); stEl.innerHTML = '<span class="pulse"></span>Overrun'; }
+    else if (status === 'warn') { stEl.classList.add('s-loading'); stEl.innerHTML = '<span class="pulse"></span>At risk'; }
+    else { stEl.classList.add('s-loading'); stEl.innerHTML = '<span class="pulse"></span>Loading'; }
+
+    // Update verify card details
+    document.getElementById('ldStarted').textContent = (card.querySelector('.lc-row2 span:last-child') || {}).textContent || '';
+    document.getElementById('ldLoader').textContent = loader + ' · forklift FL-' + (Math.floor(Math.random() * 4) + 1) + ', scanner SC-' + (Math.floor(Math.random() * 6) + 1);
+
+    openOverlay('detailDrawer');
+  }
+
+  document.getElementById('loadList').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-load-act]');
+    const card = e.target.closest('.load-card');
+    if (!card) return;
+    if (btn) {
+      e.stopPropagation();
+      const act = btn.dataset.loadAct;
+      const id = card.dataset.loadId;
+      const dock = card.dataset.dock;
+      const carrier = card.dataset.carrier;
+      const loader = card.dataset.loader;
+
+      if (act === 'reassign') {
+        document.getElementById('adDockId').textContent = dock;
+        document.getElementById('adSub').textContent = carrier + ' · current loader: ' + loader;
+        openOverlay('assignDrawer');
+      } else if (act === 'complete') {
+        // Pre-fill complete modal
+        const ref = (card.querySelector('.lc-ref') || {}).textContent || '';
+        const pct = (card.querySelector('.pct') || {}).textContent || '';
+        const total = pct.split('/')[1] || '22';
+        document.getElementById('cmRef').textContent = ref;
+        document.getElementById('cmCarrier').textContent = carrier;
+        document.getElementById('cmDock').textContent = dock;
+        document.getElementById('cmLoader').textContent = loader;
+        document.getElementById('cmCount').value = total;
+        document.getElementById('cmPallets').textContent = pct + ' pallets loaded';
+        const sig = document.getElementById('cmSig');
+        sig.classList.remove('signed');
+        sig.textContent = 'Tap to capture loader signature';
+        // Stash card reference
+        document.getElementById('cmConfirm').dataset.cardId = id;
+        openOverlay('completeModal');
+      } else if (act === 'bol') {
+        showToast('BOL queued', 'Printing to dock office printer', 'info', 1800);
+      } else if (act === 'issue') {
+        document.getElementById('issueSub').textContent = 'For ' + id + ' · ' + carrier + ' · ' + dock + ' · ' + loader;
+        openOverlay('issueDrawer');
+      }
+    } else {
+      openDetailFromCard(card);
+    }
+  });
+
+  /* ============== LOAD FILTER CHIPS ============== */
+  document.querySelectorAll('#loadsCard .filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#loadsCard .filter-chip').forEach(x => x.classList.remove('is-active'));
+      chip.classList.add('is-active');
+      const f = chip.dataset.loadFilter;
+      const cards = document.querySelectorAll('#loadList .load-card');
+      let visible = 0;
+      cards.forEach(c => {
+        const s = c.dataset.status;
+        const show = (f === 'all') || (s === f);
+        c.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      showToast('Filtered loads', visible + ' shown', 'info', 1500);
+    });
+  });
+
+  /* ============== ROSTER ============== */
+  document.querySelectorAll('#rosterList .roster-item').forEach(it => {
+    it.addEventListener('click', () => {
+      const loader = it.dataset.loader;
+      showToast(loader, 'Opening assigned tasks…', 'info', 1800);
+    });
+  });
+  document.getElementById('reassignAllBtn').addEventListener('click', () => {
+    showToast('Re-balancing crew', 'Recomputing loader-to-dock assignments…', 'info', 2200);
+  });
+
+  /* ============== BACKLOG TABLE ============== */
+  const backlogBody = document.getElementById('backlogBody');
+  backlogBody.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-bl-act]');
+    if (!btn) return;
+    e.stopPropagation();
+    const row = e.target.closest('tr');
+    const dock = row.dataset.dock;
+    const driver = row.dataset.driver;
+    const carrier = row.dataset.carrier;
+    const act = btn.dataset.blAct;
+    if (act === 'reassign') {
+      document.getElementById('adDockId').textContent = dock;
+      document.getElementById('adSub').textContent = carrier + ' · ' + driver + ' · ' + row.dataset.pallets + ' pallets · waiting ' + row.dataset.wait;
+      openOverlay('assignDrawer');
+    } else if (act === 'start') {
+      showToast('Load started · ' + dock, driver + ' / ' + carrier + ' — Y. Kim assigned', 'success', 2400);
+      flashElement(row);
+    }
+  });
+
+  // Backlog sortable headers
+  const blHeaders = document.querySelectorAll('#backlogTable thead th[data-sort]');
+  let blSort = { key: null, dir: 0 };
+  blHeaders.forEach(h => {
+    h.addEventListener('click', () => {
+      const k = h.dataset.sort;
+      if (blSort.key !== k) { blSort.key = k; blSort.dir = 1; }
+      else if (blSort.dir === 1) { blSort.dir = -1; }
+      else { blSort.dir = 0; blSort.key = null; }
+      blHeaders.forEach(x => x.classList.remove('sort-asc', 'sort-desc'));
+      if (blSort.dir === 1) h.classList.add('sort-asc');
+      else if (blSort.dir === -1) h.classList.add('sort-desc');
+      applyBacklogSort();
+    });
+  });
+  function getBacklogVal(row, key) {
+    if (key === 'dock') return row.dataset.dock;
+    if (key === 'carrier') return row.dataset.carrier.toLowerCase();
+    if (key === 'ref') return row.dataset.ref.toLowerCase();
+    if (key === 'pallets') return parseInt(row.dataset.pallets, 10);
+    if (key === 'wait') {
+      const [m, s] = row.dataset.wait.split(':').map(Number);
+      return m * 60 + s;
+    }
+    if (key === 'priority') {
+      return { high: 0, med: 1, low: 2 }[row.dataset.priority];
+    }
+    return '';
+  }
+  function applyBacklogSort() {
+    const rows = Array.from(backlogBody.querySelectorAll('tr'));
+    if (blSort.dir === 0) {
+      // restore original by data-dock order
+      rows.sort((a, b) => a.dataset.dock.localeCompare(b.dataset.dock));
+    } else {
+      rows.sort((a, b) => {
+        const va = getBacklogVal(a, blSort.key);
+        const vb = getBacklogVal(b, blSort.key);
+        if (va < vb) return -1 * blSort.dir;
+        if (va > vb) return 1 * blSort.dir;
+        return 0;
+      });
+    }
+    rows.forEach(r => backlogBody.appendChild(r));
+  }
+  document.getElementById('autoAssignBtn').addEventListener('click', () => {
+    showToast('Auto-assigning', 'Y. Kim → D-08 · J. Lin → D-02 · queued', 'success', 2400);
+  });
+
+  /* ============== DETAIL DRAWER ============== */
+  document.getElementById('ldClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('ldFlagIssue').addEventListener('click', () => {
+    document.getElementById('issueSub').textContent = 'For ' + document.getElementById('ldTitle').textContent;
+    closeAllOverlays();
+    setTimeout(() => openOverlay('issueDrawer'), 220);
+  });
+  document.getElementById('ldReassign').addEventListener('click', () => {
+    const sub = document.getElementById('ldSub').textContent;
+    const dock = (sub.split(' · ')[0] || '').trim();
+    document.getElementById('adDockId').textContent = dock;
+    document.getElementById('adSub').textContent = document.getElementById('ldTitle').textContent;
+    closeAllOverlays();
+    setTimeout(() => openOverlay('assignDrawer'), 220);
+  });
+  document.getElementById('ldComplete').addEventListener('click', () => {
+    // Open complete modal seeded from detail drawer
+    const title = document.getElementById('ldTitle').textContent;
+    const sub = document.getElementById('ldSub').textContent;
+    const titleParts = title.split(' · ');
+    const subParts = sub.split(' · ');
+    document.getElementById('cmCarrier').textContent = titleParts[1] || '';
+    document.getElementById('cmDock').textContent = subParts[0] || '';
+    document.getElementById('cmLoader').textContent = (subParts[1] || '').replace('loaded by ', '');
+    const sig = document.getElementById('cmSig');
+    sig.classList.remove('signed');
+    sig.textContent = 'Tap to capture loader signature';
+    closeAllOverlays();
+    setTimeout(() => openOverlay('completeModal'), 220);
+  });
+
+  // Pallet cell clicks — toggle done/staged
+  document.querySelectorAll('#palletGrid .pallet-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      if (cell.classList.contains('active')) return;
+      if (cell.classList.contains('done')) {
+        cell.classList.remove('done');
+      } else {
+        cell.classList.add('done');
+      }
+      flashElement(cell);
+    });
+  });
+
+  // Photo "add" cell
+  document.querySelectorAll('#detailDrawer .photo-cell.add').forEach(c => {
+    c.addEventListener('click', () => showToast('Camera ready', 'Tap shutter to capture trailer photo', 'info', 1800));
+  });
+
+  /* ============== ASSIGN DRAWER ============== */
+  document.querySelectorAll('#assignDrawer [data-assign-loader]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#assignDrawer [data-assign-loader]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.getElementById('adClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('adCancel').addEventListener('click', closeAllOverlays);
+  document.getElementById('adConfirm').addEventListener('click', () => {
+    const sel = document.querySelector('#assignDrawer [data-assign-loader].on');
+    const dock = document.getElementById('adDockId').textContent;
+    closeAllOverlays();
+    if (sel) showToast('Loader assigned · ' + dock, sel.dataset.assignLoader + ' · notification sent', 'success', 2400);
+    else showToast(dock + ' · queued', 'Will assign when next loader frees', 'info', 2200);
+  });
+
+  /* ============== ISSUE DRAWER ============== */
+  document.querySelectorAll('#issueDrawer [data-issue]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#issueDrawer [data-issue]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.querySelectorAll('#issueDrawer [data-severity]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#issueDrawer [data-severity]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.getElementById('isClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('isCancel').addEventListener('click', closeAllOverlays);
+  document.getElementById('isSubmit').addEventListener('click', () => {
+    const sev = document.querySelector('#issueDrawer [data-severity].on');
+    const sevK = sev ? sev.dataset.severity : 'info';
+    closeAllOverlays();
+    const kind = sevK === 'critical' ? 'error' : (sevK === 'warn' ? 'warn' : 'info');
+    showToast('Issue logged', 'Severity: ' + sevK + ' · supervisor notified', kind, 2400);
+  });
+
+  /* ============== COMPLETE MODAL ============== */
+  document.getElementById('cmClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('cmDismiss').addEventListener('click', closeAllOverlays);
+  document.getElementById('cmSig').addEventListener('click', e => {
+    const sig = e.currentTarget;
+    sig.classList.add('signed');
+    const loader = document.getElementById('cmLoader').textContent;
+    sig.textContent = 'Captured · ' + loader;
+  });
+  document.getElementById('cmConfirm').addEventListener('click', e => {
+    if (!document.getElementById('cmSig').classList.contains('signed')) {
+      showToast('Signature required', 'Tap the pad to capture before completing', 'warn', 2200);
+      return;
+    }
+    const cardId = e.currentTarget.dataset.cardId;
+    const dock = document.getElementById('cmDock').textContent;
+    const carrier = document.getElementById('cmCarrier').textContent;
+    const loader = document.getElementById('cmLoader').textContent;
+    const ref = document.getElementById('cmRef').textContent;
+    const total = document.getElementById('cmCount').value;
+    closeAllOverlays();
+    showToast('Load complete · ' + dock, carrier + ' · released for check-out', 'success', 2600);
+
+    // Remove from active loads
+    if (cardId) {
+      const card = document.querySelector('.load-card[data-load-id="' + cardId + '"]');
+      if (card) {
+        card.style.transition = 'opacity 220ms ease, max-height 280ms ease';
+        card.style.opacity = '0';
+        card.style.maxHeight = '0';
+        setTimeout(() => card.remove(), 320);
+      }
+    }
+    // Add a new completion item to the top of the completions list
+    const list = document.getElementById('completionsList');
+    if (list) {
+      const item = document.createElement('div');
+      item.className = 'completion-item';
+      item.innerHTML = '<div class="co-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+        '<div class="co-text"><b>' + dock + '</b> · ' + carrier + '<span class="co-sub">' + ref + ' · loaded by ' + loader + ' · ' + total + ' pallets · just now</span></div>' +
+        '<div class="co-stats"><b>0:00</b>completed now</div>';
+      list.insertBefore(item, list.firstChild);
+      flashElement(item);
+    }
+  });
+
+  /* ============== NEW LOAD DRAWER ============== */
+  document.getElementById('nlClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('nlCancel').addEventListener('click', closeAllOverlays);
+  document.querySelectorAll('#newLoadDrawer .radio-card').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#newLoadDrawer .radio-card').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.getElementById('nlConfirm').addEventListener('click', () => {
+    closeAllOverlays();
+    showToast('New load started', 'Loader assigned · added to active loads', 'success', 2200);
+  });
+
+  /* ============== EQUIPMENT UNIT CLICKS ============== */
+  document.querySelectorAll('.eq-unit').forEach(u => {
+    u.addEventListener('click', () => {
+      const id = u.textContent.trim();
+      if (!id) return;
+      if (u.classList.contains('busy')) showToast(id, 'In use · check loader assignment', 'info', 1800);
+      else if (u.classList.contains('maint')) showToast(id, 'In maintenance · back online 14:00', 'warn', 2000);
+      else showToast(id, 'Available — assign to a loader', 'info', 1800);
+    });
+  });
+
+  /* ============== COMPLETIONS LIST ============== */
+  document.querySelectorAll('#completionsList .completion-item').forEach(it => {
+    it.addEventListener('click', () => {
+      const txt = (it.querySelector('.co-text') || {}).textContent || '';
+      showToast('Completion detail', txt.slice(0, 70) + (txt.length > 70 ? '…' : ''), 'info', 1800);
+    });
+  });
+
+  /* ============== CREW BANNER ============== */
+  document.querySelector('.crew-more').addEventListener('click', () => showToast('Crew · day shift', '6 loaders · Tran, Lin, Cole, Hayes, Patel, Kim', 'info', 2200));
+
+})();
+</script>
+</body>
+</html>

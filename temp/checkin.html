@@ -1,0 +1,3098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Check-in / Check-out · Bobhaul</title>
+<style>
+  /* ============ DESIGN TOKENS ============ */
+  :root {
+    --brand: #2f6bff;
+    --brand-strong: #1f4dd1;
+    --brand-soft: #eaf0ff;
+    --purple: #7c3aed;
+    --purple-soft: #f3edff;
+    --success: #16a34a;
+    --success-soft: #dcfce7;
+    --warning: #f59e0b;
+    --warning-soft: #fef3c7;
+    --danger: #ef4444;
+    --danger-soft: #fee2e2;
+    --info: #0284c7;
+    --info-soft: #e0f2fe;
+
+    --text-primary: #0b1220;
+    --text-secondary: #475569;
+    --text-tertiary: #64748b;
+    --text-muted: #94a3b8;
+
+    --bg-app: #f6f7fb;
+    --bg-subtle: #f1f4f9;
+    --bg-hover: #eef1f6;
+
+    --border: #e2e8f0;
+    --border-soft: #eef1f5;
+    --border-strong: #cbd5e1;
+
+    --required: #ef4444;
+
+    --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
+    --shadow-pop: 0 12px 32px -8px rgba(15,23,42,0.18), 0 4px 12px -4px rgba(15,23,42,0.10);
+
+    --header-height: 56px;
+    --sidebar-width: 248px;
+    --content-max: 1480px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, sans-serif;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg-app);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+  }
+  button { font-family: inherit; }
+  ::selection { background: var(--brand-soft); }
+
+  /* ============ APP SHELL ============ */
+  .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    min-height: 100vh;
+  }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    background: #fff;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: sticky; top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+  .sidebar-logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 20px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .sidebar-logo .logo {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #2f6bff 0%, #2f6bff 18%, #7c3aed 50%, #2f6bff 82%, #2f6bff 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .sidebar-logo .logo .accent {
+    background: linear-gradient(90deg, #7c3aed, #c47bff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .nav-section {
+    padding: 6px 12px;
+  }
+  .nav-section + .nav-section { border-top: 1px solid var(--border-soft); padding-top: 14px; margin-top: 6px; }
+  .nav-section-title {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--text-muted); text-transform: uppercase;
+    padding: 8px 10px 6px;
+  }
+  .nav-item {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: 9px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: transparent;
+    border: 0; cursor: pointer;
+    font-size: 13.5px; font-weight: 500;
+    text-align: left;
+    transition: background 120ms ease, color 120ms ease;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+  .nav-item.active {
+    background: var(--brand-soft);
+    color: var(--brand);
+    font-weight: 600;
+  }
+  .nav-item.active .nav-icon { color: var(--brand); }
+  .nav-icon {
+    width: 18px; height: 18px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .nav-item.active .nav-icon { color: var(--brand); }
+  .nav-badge {
+    margin-left: auto;
+    font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+    background: var(--bg-subtle);
+    color: var(--text-tertiary);
+  }
+  .nav-badge.hot {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+  }
+  .nav-badge.warn {
+    background: var(--warning); color: #fff;
+  }
+  .nav-item .chev {
+    width: 14px; height: 14px;
+    margin-left: auto;
+    color: var(--text-muted);
+    transition: transform 200ms ease;
+  }
+  .nav-item.expander.open .chev { transform: rotate(90deg); }
+  .subnav {
+    display: none;
+    padding-left: 28px;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 1px;
+  }
+  .nav-item.expander.open + .subnav { display: flex; }
+  .subnav .nav-item { padding: 7px 10px; font-size: 13px; }
+
+  .sidebar-foot {
+    margin-top: auto;
+    padding: 10px 12px 16px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .user-chip:hover { background: var(--bg-subtle); }
+  .user-chip .avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 13px;
+  }
+  .user-chip .who { line-height: 1.15; flex: 1; min-width: 0; }
+  .user-chip .name { font-weight: 600; font-size: 13.5px; color: var(--text-primary); }
+  .user-chip .email { color: var(--text-tertiary); font-size: 12px; }
+
+  .sidebar-collapse {
+    width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px;
+    border: 0; background: transparent;
+    border-radius: 8px; cursor: pointer;
+    color: var(--text-tertiary); font-size: 12px;
+    margin-top: 6px;
+  }
+  .sidebar-collapse:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* Sidebar collapsed mode */
+  .app.sidebar-collapsed { grid-template-columns: 64px 1fr; }
+  .app.sidebar-collapsed .sidebar-logo .logo,
+  .app.sidebar-collapsed .nav-section-title,
+  .app.sidebar-collapsed .nav-item span:not(.nav-icon),
+  .app.sidebar-collapsed .nav-item .chev,
+  .app.sidebar-collapsed .nav-badge,
+  .app.sidebar-collapsed .subnav,
+  .app.sidebar-collapsed .user-chip .who { display: none; }
+  .app.sidebar-collapsed .nav-item { justify-content: center; padding: 9px 8px; }
+  .app.sidebar-collapsed .sidebar-logo { padding: 0 12px; justify-content: center; }
+  .app.sidebar-collapsed .user-chip { justify-content: center; padding: 12px 8px; }
+  .app.sidebar-collapsed .sidebar-collapse svg { transform: rotate(180deg); }
+
+  /* ============ TOPBAR ============ */
+  main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    height: var(--header-height);
+    display: flex; align-items: center;
+    padding: 0 24px;
+    gap: 14px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text-tertiary);
+  }
+  .breadcrumb .crumb {
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: transparent; border: 0; padding: 4px 6px; border-radius: 6px;
+    cursor: pointer; font-size: 13px;
+  }
+  .breadcrumb .crumb:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .breadcrumb .crumb.current { color: var(--text-primary); font-weight: 600; cursor: default; }
+  .breadcrumb .crumb.current:hover { background: transparent; }
+  .breadcrumb .sep { color: var(--text-muted); }
+
+  .topbar-spacer { flex: 1; }
+
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-tertiary);
+    display: grid; place-items: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 120ms ease;
+  }
+  .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border); }
+  .icon-btn .dot {
+    position: absolute; top: 7px; right: 7px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--danger);
+    box-shadow: 0 0 0 2px #fff;
+  }
+
+  .org-select {
+    height: 34px; padding: 0 12px;
+    border: 1px solid var(--border); background: #fff;
+    border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    cursor: pointer;
+  }
+  .org-select:hover { border-color: var(--border-strong); }
+  .org-select svg:first-child { color: var(--brand); }
+
+  /* ============ PAGE LAYOUT ============ */
+  .page {
+    padding: 24px 28px 36px;
+    max-width: var(--content-max);
+    width: 100%;
+    margin: 0 auto;
+  }
+  .page-head {
+    display: flex; align-items: flex-start; gap: 14px;
+    margin-bottom: 16px;
+  }
+  .page-head .icon-tile {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(47,107,255,0.18);
+  }
+  .page-title {
+    font-size: 22px; font-weight: 700;
+    margin: 0; letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 2px 0 0;
+  }
+
+  /* ============ TOOLBAR ============ */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .input, .select {
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  .input:focus, .select:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(47,107,255,0.15);
+  }
+  .input::placeholder { color: var(--text-muted); }
+  .select {
+    padding-right: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    appearance: none;
+  }
+  .search-input { position: relative; display: inline-flex; align-items: center; }
+  .search-input svg { position: absolute; left: 12px; color: var(--text-tertiary); }
+  .search-input input { padding-left: 36px; min-width: 280px; }
+
+  .btn {
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 60ms ease;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-hover); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary {
+    background: var(--brand); color: #fff;
+    border-color: var(--brand);
+  }
+  .btn.primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
+  .btn.danger {
+    background: var(--danger); color: #fff;
+    border-color: var(--danger);
+  }
+  .btn.danger:hover { background: #d63b3b; border-color: #d63b3b; }
+  .btn.danger-ghost { color: var(--danger); border-color: var(--danger-soft); background: #fff; }
+  .btn.danger-ghost:hover { background: var(--danger-soft); }
+  .btn.success {
+    background: var(--success); color: #fff;
+    border-color: var(--success);
+  }
+  .btn.success:hover { background: #128a3e; border-color: #128a3e; }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
+  .btn.ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .btn.sm { height: 32px; padding: 0 11px; font-size: 12.5px; border-radius: 8px; }
+  .btn.lg { height: 44px; padding: 0 18px; font-size: 14px; border-radius: 10px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .toolbar-spacer { flex: 1; }
+
+  .now-serving {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--success-soft);
+    color: var(--success);
+    font-size: 12.5px; font-weight: 600;
+    border: 1px solid rgba(22,163,74,0.18);
+  }
+  .now-serving .ns-pulse {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--success);
+    animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.5; transform: scale(1.3); }
+  }
+
+  /* ============ KPI ROW ============ */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .kpi {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    row-gap: 4px;
+    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    box-shadow: var(--shadow-card);
+  }
+  .kpi:hover { transform: translateY(-1px); box-shadow: var(--shadow-pop); border-color: var(--border-strong); }
+  .kpi .label {
+    font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    grid-column: 1;
+  }
+  .kpi .value {
+    font-size: 24px; font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    grid-column: 1;
+  }
+  .kpi .delta {
+    font-size: 11.5px; color: var(--text-tertiary);
+    grid-column: 1 / span 2;
+    font-weight: 500;
+  }
+  .kpi .delta.warn { color: var(--warning); }
+  .kpi .delta.down { color: var(--danger); }
+  .kpi .delta.up   { color: var(--success); }
+  .kpi .accent {
+    grid-column: 2; grid-row: 1 / span 2;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid; place-items: center;
+    align-self: start;
+  }
+  .kpi--gate .accent { background: var(--brand-soft); color: var(--brand); }
+  .kpi--in   .accent { background: var(--success-soft); color: var(--success); }
+  .kpi--wait .accent { background: var(--warning-soft); color: var(--warning); }
+  .kpi--load .accent { background: var(--purple-soft); color: var(--purple); }
+  .kpi--out  .accent { background: var(--info-soft);   color: var(--info); }
+
+  /* ============ CARD (generic) ============ */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-card);
+  }
+  .card-head {
+    padding: 16px 20px;
+    display: flex; align-items: flex-start;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .card-head .titles { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .card-title {
+    font-size: 15.5px; font-weight: 700;
+    color: var(--text-primary); margin: 0; letter-spacing: -0.01em;
+  }
+  .card-sub { font-size: 12.5px; color: var(--text-secondary); margin: 0; }
+  .card-head .right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+  .card-body { padding: 18px 20px; }
+
+  /* ============ SCAN HERO ============ */
+  .scan-hero {
+    background: linear-gradient(135deg, #2f6bff 0%, #5b8cff 60%, #7c3aed 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 22px;
+    align-items: center;
+    box-shadow: 0 6px 28px -10px rgba(47,107,255,0.45);
+    position: relative;
+    overflow: hidden;
+  }
+  .scan-hero::before {
+    content: "";
+    position: absolute; right: -40px; top: -40px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    pointer-events: none;
+  }
+  .scan-hero::after {
+    content: "";
+    position: absolute; right: -80px; bottom: -80px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    pointer-events: none;
+  }
+  .sh-info { position: relative; z-index: 1; }
+  .sh-eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    opacity: 0.85; margin-bottom: 6px;
+  }
+  .sh-title {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 4px;
+  }
+  .sh-sub {
+    font-size: 13.5px; opacity: 0.85; margin: 0;
+    line-height: 1.5;
+  }
+  .sh-meta {
+    margin-top: 12px;
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .sh-meta .sh-stat {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.16);
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
+  }
+  .sh-meta .sh-stat b { font-weight: 700; }
+  .sh-actions { position: relative; z-index: 1; display: flex; gap: 10px; align-items: center; }
+  .scan-btn {
+    background: #fff; color: var(--brand);
+    border: 0;
+    border-radius: 14px;
+    padding: 16px 22px;
+    font-weight: 700; font-size: 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px -4px rgba(0,0,0,0.25);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .scan-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -6px rgba(0,0,0,0.32); }
+  .scan-btn .scan-pulse {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--brand);
+    animation: pulse 1.6s infinite;
+  }
+  .scan-btn-secondary {
+    background: rgba(255,255,255,0.18);
+    color: #fff; border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-weight: 600; font-size: 13px;
+    cursor: pointer;
+    transition: background 120ms ease;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .scan-btn-secondary:hover { background: rgba(255,255,255,0.28); }
+
+  /* ============ CONTENT GRID ============ */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 460px;
+    gap: 18px;
+    margin-bottom: 18px;
+    align-items: start;
+  }
+
+  /* ============ QUEUE CARDS ============ */
+  .queue-list {
+    display: flex; flex-direction: column;
+  }
+  .queue-card {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+    transition: background 120ms ease;
+  }
+  .queue-card:last-child { border-bottom: 0; }
+  .queue-card:hover { background: var(--bg-subtle); }
+  .qc-av {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 14px;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+  .qc-info { min-width: 0; }
+  .qc-name {
+    font-size: 14px; font-weight: 700; color: var(--text-primary);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 2px;
+  }
+  .qc-name .qc-pill {
+    font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .qc-name .qc-pill.appt    { background: var(--brand-soft); color: var(--brand); }
+  .qc-name .qc-pill.walkin  { background: var(--warning-soft); color: var(--warning); }
+  .qc-name .qc-pill.early   { background: var(--info-soft); color: var(--info); }
+  .qc-meta {
+    font-size: 12.5px; color: var(--text-secondary);
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .qc-meta .dot-sep { color: var(--text-muted); }
+  .qc-meta .qc-ref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--text-tertiary); }
+  .qc-extras {
+    margin-top: 4px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .qc-tag {
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px;
+    background: var(--bg-subtle); color: var(--text-secondary);
+  }
+  .qc-tag.danger { background: var(--danger-soft); color: var(--danger); }
+  .qc-tag.warn { background: var(--warning-soft); color: var(--warning); }
+  .qc-actions { display: flex; gap: 8px; align-items: center; }
+  .qc-wait {
+    text-align: right;
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    margin-right: 4px;
+  }
+  .qc-wait b { display: block; font-size: 14px; color: var(--text-primary); font-weight: 700; }
+  .qc-wait.warn b { color: var(--warning); }
+  .qc-wait.danger b { color: var(--danger); }
+
+  /* ============ DOCK GRID ============ */
+  .dock-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 14px 20px 20px;
+  }
+  .dock-cell {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    position: relative;
+    background: #fff;
+    min-height: 96px;
+  }
+  .dock-cell:hover { transform: translateY(-1px); box-shadow: var(--shadow-pop); border-color: var(--border-strong); }
+  .dock-cell .dc-head {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .dock-cell .dc-id {
+    font-weight: 800; font-size: 14px;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .dock-cell .dc-status-pill {
+    font-size: 9.5px; font-weight: 800;
+    padding: 2px 6px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .dock-cell .dc-status-pill .pulse {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor;
+  }
+  .dock-cell .dc-body {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    flex: 1;
+    line-height: 1.4;
+  }
+  .dock-cell .dc-body b { color: var(--text-primary); font-weight: 700; }
+  .dock-cell .dc-foot {
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dock-cell.idle { border-color: var(--success); background: linear-gradient(180deg, var(--success-soft), #fff); }
+  .dock-cell.idle .dc-status-pill { background: var(--success); color: #fff; }
+
+  .dock-cell.loading { border-color: var(--brand); background: linear-gradient(180deg, var(--brand-soft), #fff); }
+  .dock-cell.loading .dc-status-pill { background: var(--brand); color: #fff; }
+  .dock-cell.loading .dc-status-pill .pulse { animation: pulse 1.6s infinite; background: #fff; }
+
+  .dock-cell.reserved { border-color: var(--warning); background: linear-gradient(180deg, var(--warning-soft), #fff); }
+  .dock-cell.reserved .dc-status-pill { background: var(--warning); color: #fff; }
+
+  .dock-cell.maint { border-color: var(--text-muted); background: linear-gradient(180deg, var(--bg-subtle), #fff); opacity: 0.85; }
+  .dock-cell.maint .dc-status-pill { background: var(--text-muted); color: #fff; }
+
+  .dock-cell.late { border-color: var(--danger); background: linear-gradient(180deg, var(--danger-soft), #fff); }
+  .dock-cell.late .dc-status-pill { background: var(--danger); color: #fff; }
+  .dock-cell.late .dc-status-pill .pulse { animation: pulse 1.2s infinite; background: #fff; }
+
+  /* ============ AVATARS ============ */
+  .av-1 { background: linear-gradient(135deg, #2f6bff, #6a8eff); color: #fff; }
+  .av-2 { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; }
+  .av-3 { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #fff; }
+  .av-4 { background: linear-gradient(135deg, #ef4444, #f87171); color: #fff; }
+  .av-5 { background: linear-gradient(135deg, #06b6d4, #22d3ee); color: #fff; }
+  .av-6 { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
+
+  /* ============ ACTIVE TABLE ============ */
+  table.actives { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.actives thead th {
+    text-align: left;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-subtle);
+    white-space: nowrap;
+    position: relative;
+  }
+  table.actives thead th:first-child { padding-left: 20px; }
+  table.actives thead th:last-child  { padding-right: 20px; }
+  table.actives thead th[data-sort] { cursor: pointer; user-select: none; }
+  table.actives thead th[data-sort]:hover { color: var(--text-primary); }
+  table.actives thead th .sort-arrow { font-size: 9px; margin-left: 4px; opacity: 0.4; transition: transform 200ms ease; }
+  table.actives thead th.sort-asc .sort-arrow,
+  table.actives thead th.sort-desc .sort-arrow { color: var(--brand); opacity: 1; }
+  table.actives thead th.sort-desc .sort-arrow { transform: rotate(180deg); }
+
+  table.actives tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text-primary);
+    vertical-align: middle;
+  }
+  table.actives tbody td:first-child { padding-left: 20px; }
+  table.actives tbody td:last-child  { padding-right: 20px; }
+  table.actives tbody tr {
+    transition: background 120ms ease;
+    cursor: pointer;
+  }
+  table.actives tbody tr:hover { background: var(--bg-subtle); }
+  table.actives tbody tr:last-child td { border-bottom: 0; }
+
+  .ref-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--text-secondary); }
+
+  .driver-cell {
+    display: flex; align-items: center; gap: 10px; min-width: 0;
+  }
+  .driver-cell .av {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 11.5px;
+    flex-shrink: 0;
+  }
+  .driver-cell .nm { font-weight: 600; color: var(--text-primary); font-size: 13.5px; }
+  .driver-cell .sub { font-size: 11.5px; color: var(--text-tertiary); }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; line-height: 1;
+    white-space: nowrap;
+  }
+  .status-pill .pulse {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .status-pill.s-ingate    { background: var(--brand-soft); color: var(--brand); }
+  .status-pill.s-ingate .pulse { animation: pulse 1.6s infinite; }
+  .status-pill.s-loading   { background: var(--purple-soft); color: var(--purple); }
+  .status-pill.s-loading .pulse { animation: pulse 1.6s infinite; }
+  .status-pill.s-loaded    { background: var(--success-soft); color: var(--success); }
+  .status-pill.s-out       { background: #eef0f3; color: var(--text-secondary); }
+  .status-pill.s-late      { background: var(--danger-soft); color: var(--danger); }
+  .status-pill.s-late .pulse { animation: pulse 1.2s infinite; }
+
+  .dir-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+  .dir-pill.in    { background: #e6f5fc; color: #0369a1; border: 1px solid #cfeaf6; }
+  .dir-pill.out   { background: #f1ecff; color: #6d28d9; border: 1px solid #e0d4ff; }
+  .dir-pill.cross { background: #fff7e6; color: #b45309; border: 1px solid #fde7b8; }
+
+  .row-actions { display: inline-flex; gap: 4px; }
+  .row-act {
+    width: 28px; height: 28px;
+    border-radius: 7px; border: 1px solid transparent;
+    background: transparent;
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    cursor: pointer;
+  }
+  .row-act:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border); }
+
+  .filter-chips {
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  }
+  .filter-chip {
+    height: 30px; padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--text-secondary);
+    font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .filter-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .filter-chip.is-active {
+    background: var(--brand);
+    color: #fff;
+    border-color: var(--brand);
+  }
+  .filter-chip .chip-count {
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.18);
+  }
+  .filter-chip:not(.is-active) .chip-count { background: var(--bg-subtle); color: var(--text-tertiary); }
+
+  .empty-search-row td {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-style: italic;
+    padding: 32px !important;
+  }
+
+  /* ============ ACTIVITY FEED ============ */
+  .activity-list { padding: 4px 0; }
+  .activity-item {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .activity-item:last-child { border-bottom: 0; }
+  .activity-item .ai-ic {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+  }
+  .activity-item .ai-ic.in    { background: var(--brand-soft); color: var(--brand); }
+  .activity-item .ai-ic.out   { background: var(--success-soft); color: var(--success); }
+  .activity-item .ai-ic.warn  { background: var(--warning-soft); color: var(--warning); }
+  .activity-item .ai-ic.alert { background: var(--danger-soft); color: var(--danger); }
+  .activity-item .ai-text { font-size: 13px; color: var(--text-primary); line-height: 1.4; }
+  .activity-item .ai-text b { font-weight: 700; }
+  .activity-item .ai-text .ai-sub { font-size: 11.5px; color: var(--text-tertiary); margin-top: 2px; display: block; }
+  .activity-item .ai-time {
+    font-size: 11.5px; color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* row-flash */
+  @keyframes rowPulse {
+    0% { background: var(--brand-soft); }
+    100% { background: transparent; }
+  }
+  tr.row-flash, .queue-card.row-flash, .dock-cell.row-flash, .activity-item.row-flash { animation: rowPulse 1200ms ease; }
+
+  /* ============ DRAWER ============ */
+  .scrim {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 60;
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 480px; max-width: 92vw;
+    background: #fff;
+    box-shadow: -10px 0 32px -8px rgba(15,23,42,0.16);
+    z-index: 70;
+    transform: translateX(100%);
+    transition: transform 280ms cubic-bezier(0.4,0,0.2,1);
+    display: flex; flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer.wide { width: 760px; max-width: 96vw; }
+
+  .drawer-head {
+    display: flex; gap: 12px; align-items: center;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .drawer-head .icon-tile {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: var(--brand-soft); color: var(--brand);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(47,107,255,0.18);
+  }
+  .drawer-title { font-size: 18px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .drawer-sub { color: var(--text-secondary); font-size: 13px; margin: 0; }
+  .drawer-close {
+    width: 36px; height: 36px;
+    border: 0; background: transparent;
+    border-radius: 8px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: background 120ms ease;
+  }
+  .drawer-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  .drawer-body { flex: 1; overflow-y: auto; padding: 22px 24px; }
+  .drawer-body::-webkit-scrollbar { width: 8px; }
+  .drawer-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+
+  .drawer-foot {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border-soft);
+    display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  }
+  .drawer-foot .right-actions { display: flex; gap: 10px; margin-left: auto; }
+
+  .form-section {
+    display: flex; flex-direction: column; gap: 14px;
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .form-section:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+  .form-section-title {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 0;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+  }
+  .field .input, .field .select, .field textarea {
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13.5px;
+    outline: none;
+    width: 100%;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+    font-family: inherit;
+  }
+  .field textarea { height: auto; padding: 10px 12px; resize: vertical; min-height: 70px; line-height: 1.45; }
+  .field .input:focus, .field .select:focus, .field textarea:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(47,107,255,0.15);
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  /* Verify card */
+  .verify-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .verify-row {
+    display: grid;
+    grid-template-columns: 110px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 13.5px;
+  }
+  .verify-row:last-child { border-bottom: 0; }
+  .verify-row .vr-l { color: var(--text-tertiary); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .verify-row .vr-v { color: var(--text-primary); font-weight: 600; }
+  .verify-row .vr-check {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+  }
+  .verify-row.ok .vr-check { background: var(--success); color: #fff; }
+  .verify-row.warn .vr-check { background: var(--warning); color: #fff; }
+  .verify-row.fail .vr-check { background: var(--danger); color: #fff; }
+
+  /* Radio cards */
+  .radio-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #fff;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+    display: flex; flex-direction: column; gap: 4px;
+    text-align: left;
+  }
+  .radio-card:hover { background: var(--bg-hover); }
+  .radio-card.on {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+  }
+  .radio-card .ic { color: var(--text-tertiary); }
+  .radio-card.on .ic { color: var(--brand); }
+  .radio-card .lbl { font-size: 13px; font-weight: 600; }
+  .radio-card .sub { font-size: 11.5px; color: var(--text-tertiary); }
+
+  /* Available dock chips inside drawer */
+  .dock-chip-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .dock-chip {
+    padding: 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    text-align: center;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .dock-chip:hover { background: var(--bg-hover); }
+  .dock-chip.on {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .dock-chip .dc-num { font-weight: 800; font-size: 14px; color: var(--text-primary); }
+  .dock-chip.on .dc-num { color: var(--brand); }
+  .dock-chip .dc-cap { font-size: 10.5px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* Modal */
+  .modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.96);
+    width: 480px; max-width: 92vw;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 64px -12px rgba(15,23,42,0.30), 0 8px 24px -8px rgba(15,23,42,0.16);
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+    z-index: 70;
+    display: flex; flex-direction: column;
+  }
+  .modal.open {
+    opacity: 1; pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .modal-head {
+    padding: 22px 24px 0;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .modal-head .icon-tile {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--brand-soft); color: var(--brand);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(47,107,255,0.18);
+  }
+  .modal-head .icon-tile.success { background: var(--success-soft); color: var(--success); box-shadow: inset 0 0 0 1px rgba(22,163,74,0.18); }
+  .modal-head .icon-tile.danger { background: var(--danger-soft); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(239,68,68,0.18); }
+  .modal-title { font-size: 17px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .modal-sub { color: var(--text-secondary); font-size: 13px; margin: 0; line-height: 1.5; }
+  .modal-body { padding: 16px 24px 8px; }
+  .modal-foot {
+    padding: 12px 24px 18px;
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .modal-preview {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .modal-preview .mp-row {
+    display: flex; gap: 10px;
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .modal-preview .mp-row .mp-l { min-width: 90px; color: var(--text-tertiary); font-weight: 600; }
+  .modal-preview .mp-row b { color: var(--text-primary); font-weight: 700; }
+
+  .signature-pad {
+    border: 1.5px dashed var(--border-strong);
+    border-radius: 10px;
+    background: var(--bg-subtle);
+    padding: 28px;
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .signature-pad:hover { border-color: var(--brand); color: var(--brand); }
+  .signature-pad.signed { border-style: solid; border-color: var(--success); background: var(--success-soft); color: var(--success); font-weight: 700; }
+
+  /* Toast */
+  .toast-stack {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    display: flex; flex-direction: column-reverse;
+    gap: 10px; z-index: 90;
+    pointer-events: none;
+  }
+  .toast {
+    pointer-events: auto;
+    min-width: 280px; max-width: 380px;
+    background: #0b1220;
+    color: #fff;
+    border-radius: 12px;
+    padding: 12px 14px 12px 12px;
+    display: grid; grid-template-columns: auto 1fr auto;
+    gap: 10px; align-items: start;
+    box-shadow: 0 10px 30px -8px rgba(0,0,0,0.4);
+    animation: toastIn 240ms ease;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  .toast.exiting { animation: toastOut 220ms ease forwards; }
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateX(20px); }
+  }
+  .toast .ti {
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    background: rgba(255,255,255,0.1);
+  }
+  .toast.success .ti { background: var(--success-soft); color: var(--success); }
+  .toast.warn    .ti { background: var(--warning-soft); color: var(--warning); }
+  .toast.error   .ti { background: var(--danger-soft);  color: var(--danger); }
+  .toast.info    .ti { background: var(--brand-soft);   color: var(--brand); }
+  .toast .body .title { font-weight: 700; font-size: 13.5px; }
+  .toast .body .sub { font-size: 12px; opacity: 0.78; margin-top: 2px; }
+  .toast .x {
+    background: transparent; border: 0; color: rgba(255,255,255,0.6);
+    cursor: pointer; padding: 2px; border-radius: 6px;
+  }
+  .toast .x:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+  /* Popmenu */
+  .popmenu {
+    position: fixed;
+    z-index: 80;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-pop);
+    padding: 6px;
+    opacity: 0; transform: translateY(-4px) scale(0.98);
+    transition: opacity 140ms ease, transform 140ms ease;
+    pointer-events: none;
+  }
+  .popmenu.is-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+  .pm-item {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    background: transparent; border: 0;
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms ease, color 120ms ease;
+  }
+  .pm-item:hover { background: var(--bg-subtle); color: var(--text-primary); }
+  .pm-ic {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--bg-subtle);
+    display: grid; place-items: center;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+
+  /* Misc */
+  .badge-counter {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+
+  /* Responsive */
+  @media (max-width: 1280px) {
+    .content-grid { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .kpi-row { grid-template-columns: 1fr 1fr; }
+    .scan-hero { grid-template-columns: 1fr; }
+    .dock-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+</style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- ============== SIDEBAR ============== -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo">B<span class="accent">ob</span>haul</div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Overview</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11l2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Analytics</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Communication</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Messages</span>
+          <span class="nav-badge">3</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span>Email</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Organization</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Carriers</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>
+          <span>Drivers</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 21V12h6v9"/></svg>
+          <span>Facilities</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Operations</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 8h4l3 3v6a1 1 0 0 1-1 1h-1"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg>
+          <span>Dock Management</span>
+          <span class="nav-badge hot">LIVE</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m8 14 3 3 5-6"/></svg>
+          <span>Appointments</span>
+          <span class="nav-badge warn">5</span>
+        </button>
+        <button class="nav-item active" aria-current="page">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H1l3 8h13l3-8h-8"/><path d="m12 11 0-9"/><path d="m9 6 3-4 3 4"/></svg>
+          <span>Check-in / Check-out</span>
+          <span class="nav-badge hot">4</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 7h6M6 11h12"/></svg>
+          <span>Load Management</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Documents</div>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Bills of Lading</span>
+        </button>
+        <button class="nav-item">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span>Reports</span>
+        </button>
+      </div>
+
+      <div class="sidebar-foot">
+        <div class="user-chip">
+          <div class="avatar">DR</div>
+          <div class="who">
+            <div class="name">Daniel Reyes</div>
+            <div class="email">Gate guard · Day shift</div>
+          </div>
+        </div>
+        <button class="sidebar-collapse" aria-label="Collapse sidebar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Collapse</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ============== MAIN ============== -->
+    <main>
+      <!-- Topbar -->
+      <header class="topbar">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <button class="crumb">Operations</button>
+          <span class="sep">›</span>
+          <button class="crumb current">Check-in / Check-out</button>
+        </nav>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-actions">
+          <button class="icon-btn" id="notifBell" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="dot"></span>
+          </button>
+          <button class="org-select" id="orgSelect">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 21V12h6v9"/></svg>
+            Bobhaul
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="icon-btn" id="userChip" aria-label="Sign out">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Page content -->
+      <div class="page">
+
+        <!-- Page Head -->
+        <div class="page-head">
+          <div class="icon-tile">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H1l3 8h13l3-8h-8"/><path d="M12 11 12 2"/><path d="m9 6 3-4 3 4"/></svg>
+          </div>
+          <div>
+            <h1 class="page-title">Check-in / Check-out</h1>
+            <p class="page-subtitle">Gate console — Bobhaul · Dallas Distribution Hub · Day shift 06:00–14:00</p>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <label class="search-input">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="input" id="globalSearch" placeholder="Search license, PO, carrier, driver…" />
+          </label>
+          <div class="now-serving">
+            <span class="ns-pulse"></span>
+            Now serving: <b style="color: var(--success); font-weight: 700;">JB Hunt</b> · A. Nakamura · Bay 03
+          </div>
+          <div class="toolbar-spacer"></div>
+          <button class="btn" id="refreshBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh
+          </button>
+          <button class="btn" id="printLogBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print today's log
+          </button>
+          <button class="btn primary" id="manualCheckinBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Manual check-in
+          </button>
+        </div>
+
+        <!-- KPI Strip -->
+        <section class="kpi-row">
+          <div class="kpi kpi--gate" data-kpi="gate">
+            <span class="label">At Gate</span>
+            <span class="value" id="kpiAtGate">4</span>
+            <span class="delta">Drivers waiting · longest 14m</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          </div>
+          <div class="kpi kpi--in" data-kpi="checkedin">
+            <span class="label">Checked In Today</span>
+            <span class="value">22</span>
+            <span class="delta up">▲ 4 vs same time yesterday</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          </div>
+          <div class="kpi kpi--wait" data-kpi="wait">
+            <span class="label">Avg Wait</span>
+            <span class="value">6m 24s</span>
+            <span class="delta warn">▲ 1m 12s vs target (5m)</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+          </div>
+          <div class="kpi kpi--load" data-kpi="loading">
+            <span class="label">Currently Loading</span>
+            <span class="value">8</span>
+            <span class="delta">5 inbound · 3 outbound</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 8h4l3 3v6a1 1 0 0 1-1 1h-1"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg></span>
+          </div>
+          <div class="kpi kpi--out" data-kpi="checkedout">
+            <span class="label">Checked Out Today</span>
+            <span class="value">14</span>
+            <span class="delta">Avg loading time 47m</span>
+            <span class="accent"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></span>
+          </div>
+        </section>
+
+        <!-- Scan Hero -->
+        <section class="scan-hero">
+          <div class="sh-info">
+            <div class="sh-eyebrow">Gate console</div>
+            <h2 class="sh-title">Scan a driver's license or PO to begin</h2>
+            <p class="sh-sub">Pull up the appointment, verify equipment, and assign a dock — all from one screen.</p>
+            <div class="sh-meta">
+              <div class="sh-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Gate open <b>06:00 – 22:00</b></div>
+              <div class="sh-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Scanner ready</div>
+              <div class="sh-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Synced just now</div>
+            </div>
+          </div>
+          <div class="sh-actions">
+            <button class="scan-btn" id="scanBtn">
+              <span class="scan-pulse"></span>
+              Scan license
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <button class="scan-btn-secondary" id="scanPoBtn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              Scan PO barcode
+            </button>
+          </div>
+        </section>
+
+        <!-- Two-column: Queue + Dock grid -->
+        <div class="content-grid">
+
+          <!-- LEFT: Queue -->
+          <section class="card" id="queueCard">
+            <header class="card-head">
+              <div class="titles">
+                <h2 class="card-title">At the gate · waiting</h2>
+                <p class="card-sub"><span id="queueCount">4</span> drivers — verify and assign a dock</p>
+              </div>
+              <div class="right">
+                <button class="btn sm ghost" id="queueRefreshBtn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  Refresh queue
+                </button>
+              </div>
+            </header>
+
+            <div class="queue-list" id="queueList">
+
+              <article class="queue-card" data-queue-id="Q-101" data-carrier="JB Hunt" data-driver="A. Nakamura" data-ref="PO-998620" data-direction="in" data-appt="APPT-3822">
+                <div class="qc-av av-4">JB</div>
+                <div class="qc-info">
+                  <div class="qc-name">A. Nakamura <span class="qc-pill appt">Has appointment</span></div>
+                  <div class="qc-meta"><span>JB Hunt · 53′ Reefer</span><span class="dot-sep">·</span><span class="qc-ref">PO-998620</span><span class="dot-sep">·</span><span>Slot 09:00</span></div>
+                  <div class="qc-extras"><span class="qc-tag">Inbound</span><span class="qc-tag">Reefer plug needed</span></div>
+                </div>
+                <div class="qc-actions">
+                  <div class="qc-wait">
+                    <b>04:21</b>
+                    waiting
+                  </div>
+                  <button class="btn sm ghost" data-q-act="defer">Defer</button>
+                  <button class="btn sm primary" data-q-act="checkin">Check in</button>
+                </div>
+              </article>
+
+              <article class="queue-card" data-queue-id="Q-102" data-carrier="Schneider" data-driver="R. Powell" data-ref="LD-44321" data-direction="in" data-appt="APPT-3814">
+                <div class="qc-av av-1">SC</div>
+                <div class="qc-info">
+                  <div class="qc-name">R. Powell <span class="qc-pill appt">Has appointment</span></div>
+                  <div class="qc-meta"><span>Schneider · 53′ Dry van</span><span class="dot-sep">·</span><span class="qc-ref">LD-44321</span><span class="dot-sep">·</span><span>Slot 10:00</span></div>
+                  <div class="qc-extras"><span class="qc-tag">Inbound</span><span class="qc-tag warn">Arrived 24m late</span></div>
+                </div>
+                <div class="qc-actions">
+                  <div class="qc-wait warn">
+                    <b>14:08</b>
+                    waiting
+                  </div>
+                  <button class="btn sm ghost" data-q-act="defer">Defer</button>
+                  <button class="btn sm primary" data-q-act="checkin">Check in</button>
+                </div>
+              </article>
+
+              <article class="queue-card" data-queue-id="Q-103" data-carrier="Walmart Transport" data-driver="A. Flores" data-ref="REC-WM-T16" data-direction="out" data-appt="APPT-3820">
+                <div class="qc-av av-2">WT</div>
+                <div class="qc-info">
+                  <div class="qc-name">A. Flores <span class="qc-pill early">Early arrival</span></div>
+                  <div class="qc-meta"><span>Walmart Transport · 53′ Reefer</span><span class="dot-sep">·</span><span class="qc-ref">REC-WM-T16</span><span class="dot-sep">·</span><span>Slot 16:00</span></div>
+                  <div class="qc-extras"><span class="qc-tag">Outbound</span><span class="qc-tag">Recurring · Tue</span></div>
+                </div>
+                <div class="qc-actions">
+                  <div class="qc-wait">
+                    <b>02:46</b>
+                    waiting
+                  </div>
+                  <button class="btn sm ghost" data-q-act="defer">Defer</button>
+                  <button class="btn sm primary" data-q-act="checkin">Check in</button>
+                </div>
+              </article>
+
+              <article class="queue-card" data-queue-id="Q-104" data-carrier="Roadrunner" data-driver="M. Ortiz" data-ref="—" data-direction="in" data-appt="">
+                <div class="qc-av av-3">RR</div>
+                <div class="qc-info">
+                  <div class="qc-name">M. Ortiz <span class="qc-pill walkin">Walk-in / no appointment</span></div>
+                  <div class="qc-meta"><span>Roadrunner Transport · 48′ Dry van</span><span class="dot-sep">·</span><span class="qc-ref">DOT-3142008</span></div>
+                  <div class="qc-extras"><span class="qc-tag danger">Not on schedule</span><span class="qc-tag">Says LTL drop</span></div>
+                </div>
+                <div class="qc-actions">
+                  <div class="qc-wait danger">
+                    <b>21:32</b>
+                    waiting
+                  </div>
+                  <button class="btn sm danger-ghost" data-q-act="reject">Reject</button>
+                  <button class="btn sm primary" data-q-act="checkin">Manual check-in</button>
+                </div>
+              </article>
+
+              <!-- Empty state -->
+              <div class="queue-empty" id="queueEmpty" style="display: none; padding: 36px 20px; text-align: center; color: var(--text-tertiary);">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--success-soft); color: var(--success); display: grid; place-items: center; margin: 0 auto 10px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 14px;">Gate is clear</div>
+                <div style="margin-top: 4px; font-size: 12.5px;">No drivers waiting. Next appointment at 11:30.</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- RIGHT: Dock grid -->
+          <section class="card" id="dockBoardCard">
+            <header class="card-head">
+              <div class="titles">
+                <h2 class="card-title">Dock status — right now</h2>
+                <p class="card-sub">Click an idle dock to assign a driver</p>
+              </div>
+              <div class="right">
+                <span style="font-size: 11px; font-weight: 600; color: var(--success);">● <span id="dockIdleCount">3</span> idle</span>
+              </div>
+            </header>
+
+            <div class="dock-grid" id="dockGrid">
+              <button class="dock-cell loading" data-dock="D-01" data-status="loading">
+                <div class="dc-head">
+                  <span class="dc-id">D-01</span>
+                  <span class="dc-status-pill"><span class="pulse"></span>Loading</span>
+                </div>
+                <div class="dc-body"><b>Walmart Transport</b><br>PO-998612 · 32m elapsed</div>
+                <div class="dc-foot">ETA finish 11:18</div>
+              </button>
+
+              <button class="dock-cell idle" data-dock="D-02" data-status="idle">
+                <div class="dc-head">
+                  <span class="dc-id">D-02</span>
+                  <span class="dc-status-pill">Idle</span>
+                </div>
+                <div class="dc-body">Reefer dock<br>Available now</div>
+                <div class="dc-foot">Assign driver →</div>
+              </button>
+
+              <button class="dock-cell loading" data-dock="D-03" data-status="loading">
+                <div class="dc-head">
+                  <span class="dc-id">D-03</span>
+                  <span class="dc-status-pill"><span class="pulse"></span>Loading</span>
+                </div>
+                <div class="dc-body"><b>JB Hunt</b><br>A. Nakamura · 14m elapsed</div>
+                <div class="dc-foot">ETA finish 10:30</div>
+              </button>
+
+              <button class="dock-cell idle" data-dock="D-04" data-status="idle">
+                <div class="dc-head">
+                  <span class="dc-id">D-04</span>
+                  <span class="dc-status-pill">Idle</span>
+                </div>
+                <div class="dc-body">Reefer dock<br>Available now</div>
+                <div class="dc-foot">Assign driver →</div>
+              </button>
+
+              <button class="dock-cell loading" data-dock="D-05" data-status="loading">
+                <div class="dc-head">
+                  <span class="dc-id">D-05</span>
+                  <span class="dc-status-pill"><span class="pulse"></span>Loading</span>
+                </div>
+                <div class="dc-body"><b>Knight Transport</b><br>M. Singh · 04m elapsed</div>
+                <div class="dc-foot">ETA finish 11:05</div>
+              </button>
+
+              <button class="dock-cell maint" data-dock="D-06" data-status="maint">
+                <div class="dc-head">
+                  <span class="dc-id">D-06</span>
+                  <span class="dc-status-pill">Maint</span>
+                </div>
+                <div class="dc-body">Leveler repair<br>Back online 14:00</div>
+                <div class="dc-foot">Crew on-site</div>
+              </button>
+
+              <button class="dock-cell loading" data-dock="D-07" data-status="loading">
+                <div class="dc-head">
+                  <span class="dc-id">D-07</span>
+                  <span class="dc-status-pill"><span class="pulse"></span>Loading</span>
+                </div>
+                <div class="dc-body"><b>Schneider</b><br>R. Powell (late) · 08m</div>
+                <div class="dc-foot">ETA finish 11:00</div>
+              </button>
+
+              <button class="dock-cell idle" data-dock="D-08" data-status="idle">
+                <div class="dc-head">
+                  <span class="dc-id">D-08</span>
+                  <span class="dc-status-pill">Idle</span>
+                </div>
+                <div class="dc-body">Standard dry<br>Available now</div>
+                <div class="dc-foot">Assign driver →</div>
+              </button>
+
+              <button class="dock-cell loading" data-dock="D-09" data-status="loading">
+                <div class="dc-head">
+                  <span class="dc-id">D-09</span>
+                  <span class="dc-status-pill"><span class="pulse"></span>Loading</span>
+                </div>
+                <div class="dc-body"><b>FedEx Freight</b><br>K. Bauer · 18m elapsed</div>
+                <div class="dc-foot">ETA finish 11:00</div>
+              </button>
+
+              <button class="dock-cell reserved" data-dock="D-10" data-status="reserved">
+                <div class="dc-head">
+                  <span class="dc-id">D-10</span>
+                  <span class="dc-status-pill">Reserved</span>
+                </div>
+                <div class="dc-body">XPO Logistics<br>Arriving ~11:15</div>
+                <div class="dc-foot">PO-998651</div>
+              </button>
+
+              <button class="dock-cell loading" data-dock="D-11" data-status="loading">
+                <div class="dc-head">
+                  <span class="dc-id">D-11</span>
+                  <span class="dc-status-pill"><span class="pulse"></span>Loading</span>
+                </div>
+                <div class="dc-body"><b>Sysco</b><br>P. Okafor · 22m elapsed</div>
+                <div class="dc-foot">ETA finish 11:08</div>
+              </button>
+
+              <button class="dock-cell late" data-dock="D-12" data-status="late">
+                <div class="dc-head">
+                  <span class="dc-id">D-12</span>
+                  <span class="dc-status-pill"><span class="pulse"></span>Overrun</span>
+                </div>
+                <div class="dc-body"><b>Schneider</b><br>R. Powell · 86m (target 60m)</div>
+                <div class="dc-foot" style="color: var(--danger); font-weight: 700;">26m overdue</div>
+              </button>
+            </div>
+          </section>
+
+        </div><!-- /content-grid -->
+
+        <!-- Active appointments table -->
+        <section class="card" id="activesCard" style="margin-bottom: 18px;">
+          <header class="card-head">
+            <div class="titles">
+              <h2 class="card-title">Active appointments at the warehouse</h2>
+              <p class="card-sub">Drivers checked in but not yet checked out · 8 active</p>
+            </div>
+            <div class="right">
+              <span style="font-size: 12px; color: var(--text-tertiary);">Showing <b id="activesShown">8</b> of <b>8</b></span>
+            </div>
+          </header>
+
+          <div class="filter-chips" id="filterChips" style="padding: 14px 20px; border-bottom: 1px solid var(--border-soft);">
+            <button class="filter-chip is-active" data-filter="all">All <span class="chip-count">8</span></button>
+            <button class="filter-chip" data-filter="ingate">Just checked in <span class="chip-count">2</span></button>
+            <button class="filter-chip" data-filter="loading">Loading <span class="chip-count">5</span></button>
+            <button class="filter-chip" data-filter="loaded">Loaded · ready out <span class="chip-count">1</span></button>
+            <button class="filter-chip" data-filter="late">Overrun <span class="chip-count">1</span></button>
+
+            <div style="margin-left: auto; position: relative;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="activesSearch" type="search" placeholder="Search driver, PO, dock…" style="border: 1px solid var(--border); background: #fff; height: 32px; border-radius: 8px; padding: 0 12px 0 30px; min-width: 220px; font-size: 13px; outline: none; color: var(--text-primary);"/>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="actives" id="activesTable">
+              <thead>
+                <tr>
+                  <th data-sort="driver" style="min-width: 200px;">Driver / Carrier <span class="sort-arrow">▼</span></th>
+                  <th data-sort="ref">PO / Ref <span class="sort-arrow">▼</span></th>
+                  <th data-sort="direction" style="width: 100px;">Direction <span class="sort-arrow">▼</span></th>
+                  <th data-sort="dock" style="width: 86px;">Dock <span class="sort-arrow">▼</span></th>
+                  <th data-sort="checkin" style="width: 110px;">Checked in <span class="sort-arrow">▼</span></th>
+                  <th data-sort="elapsed" style="width: 90px;">Elapsed <span class="sort-arrow">▼</span></th>
+                  <th data-sort="status" style="width: 130px;">Status <span class="sort-arrow">▼</span></th>
+                  <th style="width: 200px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="activesBody">
+
+                <tr data-status="loading" data-driver="J. Carter" data-carrier="Walmart Transport" data-ref="PO-998612" data-dock="D-01" data-elapsed="32" data-checkin="07:46" data-direction="in" data-appt="APPT-3812">
+                  <td><div class="driver-cell"><span class="av av-2">WT</span><div><div class="nm">J. Carter</div><div class="sub">Walmart Transport</div></div></div></td>
+                  <td><span class="ref-mono">PO-998612</span></td>
+                  <td><span class="dir-pill in">→ In</span></td>
+                  <td><b>D-01</b></td>
+                  <td>07:46</td>
+                  <td><b>0:32</b></td>
+                  <td><span class="status-pill s-loading"><span class="pulse"></span>Loading</span></td>
+                  <td><button class="btn sm" data-active-act="detail">Details</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+                <tr data-status="loading" data-driver="A. Nakamura" data-carrier="JB Hunt" data-ref="PO-998620" data-dock="D-03" data-elapsed="14" data-checkin="08:46" data-direction="in" data-appt="APPT-3822">
+                  <td><div class="driver-cell"><span class="av av-4">JB</span><div><div class="nm">A. Nakamura</div><div class="sub">JB Hunt</div></div></div></td>
+                  <td><span class="ref-mono">PO-998620</span></td>
+                  <td><span class="dir-pill in">→ In</span></td>
+                  <td><b>D-03</b></td>
+                  <td>08:46</td>
+                  <td><b>0:14</b></td>
+                  <td><span class="status-pill s-loading"><span class="pulse"></span>Loading</span></td>
+                  <td><button class="btn sm" data-active-act="detail">Details</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+                <tr data-status="loading" data-driver="M. Singh" data-carrier="Knight Transport" data-ref="PO-771203" data-dock="D-05" data-elapsed="4" data-checkin="08:56" data-direction="in" data-appt="APPT-3813">
+                  <td><div class="driver-cell"><span class="av av-3">KT</span><div><div class="nm">M. Singh</div><div class="sub">Knight Transport</div></div></div></td>
+                  <td><span class="ref-mono">PO-771203</span></td>
+                  <td><span class="dir-pill in">→ In</span></td>
+                  <td><b>D-05</b></td>
+                  <td>08:56</td>
+                  <td><b>0:04</b></td>
+                  <td><span class="status-pill s-ingate"><span class="pulse"></span>Just in</span></td>
+                  <td><button class="btn sm" data-active-act="detail">Details</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+                <tr data-status="loading" data-driver="R. Powell" data-carrier="Schneider" data-ref="LD-44321" data-dock="D-07" data-elapsed="8" data-checkin="08:52" data-direction="in" data-appt="APPT-3814">
+                  <td><div class="driver-cell"><span class="av av-1">SC</span><div><div class="nm">R. Powell</div><div class="sub">Schneider</div></div></div></td>
+                  <td><span class="ref-mono">LD-44321</span></td>
+                  <td><span class="dir-pill in">→ In</span></td>
+                  <td><b>D-07</b></td>
+                  <td>08:52</td>
+                  <td><b>0:08</b></td>
+                  <td><span class="status-pill s-ingate"><span class="pulse"></span>Just in</span></td>
+                  <td><button class="btn sm" data-active-act="detail">Details</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+                <tr data-status="loading" data-driver="K. Bauer" data-carrier="FedEx Freight" data-ref="LTL-228841" data-dock="D-09" data-elapsed="18" data-checkin="08:42" data-direction="out" data-appt="APPT-3801">
+                  <td><div class="driver-cell"><span class="av av-6">FX</span><div><div class="nm">K. Bauer</div><div class="sub">FedEx Freight</div></div></div></td>
+                  <td><span class="ref-mono">LTL-228841</span></td>
+                  <td><span class="dir-pill out">← Out</span></td>
+                  <td><b>D-09</b></td>
+                  <td>08:42</td>
+                  <td><b>0:18</b></td>
+                  <td><span class="status-pill s-loading"><span class="pulse"></span>Loading</span></td>
+                  <td><button class="btn sm" data-active-act="detail">Details</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+                <tr data-status="loading" data-driver="P. Okafor" data-carrier="Sysco" data-ref="LD-44510" data-dock="D-11" data-elapsed="22" data-checkin="08:38" data-direction="out" data-appt="APPT-3828">
+                  <td><div class="driver-cell"><span class="av av-2">SY</span><div><div class="nm">P. Okafor</div><div class="sub">Sysco</div></div></div></td>
+                  <td><span class="ref-mono">LD-44510</span></td>
+                  <td><span class="dir-pill out">← Out</span></td>
+                  <td><b>D-11</b></td>
+                  <td>08:38</td>
+                  <td><b>0:22</b></td>
+                  <td><span class="status-pill s-loading"><span class="pulse"></span>Loading</span></td>
+                  <td><button class="btn sm" data-active-act="detail">Details</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+                <tr data-status="loaded" data-driver="C. Mendez" data-carrier="Knight Transport" data-ref="PO-771244" data-dock="D-04" data-elapsed="58" data-checkin="08:02" data-direction="in" data-appt="APPT-3825">
+                  <td><div class="driver-cell"><span class="av av-3">KT</span><div><div class="nm">C. Mendez</div><div class="sub">Knight Transport</div></div></div></td>
+                  <td><span class="ref-mono">PO-771244</span></td>
+                  <td><span class="dir-pill in">→ In</span></td>
+                  <td><b>D-04</b></td>
+                  <td>08:02</td>
+                  <td><b>0:58</b></td>
+                  <td><span class="status-pill s-loaded">Loaded · ready</span></td>
+                  <td><button class="btn sm" data-active-act="detail">Details</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+                <tr data-status="late" data-driver="R. Powell" data-carrier="Schneider" data-ref="LD-44310" data-dock="D-12" data-elapsed="86" data-checkin="07:34" data-direction="in" data-appt="APPT-3810">
+                  <td><div class="driver-cell"><span class="av av-1">SC</span><div><div class="nm">R. Powell</div><div class="sub">Schneider</div></div></div></td>
+                  <td><span class="ref-mono">LD-44310</span></td>
+                  <td><span class="dir-pill in">→ In</span></td>
+                  <td><b>D-12</b></td>
+                  <td>07:34</td>
+                  <td><b>1:26</b></td>
+                  <td><span class="status-pill s-late"><span class="pulse"></span>Overrun · 26m</span></td>
+                  <td><button class="btn sm" data-active-act="issue">Flag issue</button> <button class="btn sm success" data-active-act="checkout">Check out</button></td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Activity feed -->
+        <section class="card">
+          <header class="card-head">
+            <div class="titles">
+              <h2 class="card-title">Today's activity</h2>
+              <p class="card-sub">Live feed of check-ins, check-outs, and gate events</p>
+            </div>
+            <div class="right">
+              <button class="btn sm ghost">View full log</button>
+            </div>
+          </header>
+          <div class="activity-list" id="activityList">
+            <div class="activity-item">
+              <div class="ai-ic in"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+              <div class="ai-text"><b>M. Singh</b> · Knight Transport checked in to <b>D-05</b><span class="ai-sub">PO-771203 · verified by you · 08:56</span></div>
+              <div class="ai-time">4m ago</div>
+            </div>
+            <div class="activity-item">
+              <div class="ai-ic in"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+              <div class="ai-text"><b>R. Powell</b> · Schneider checked in to <b>D-07</b><span class="ai-sub">LD-44321 · arrived 24m late · 08:52</span></div>
+              <div class="ai-time">8m ago</div>
+            </div>
+            <div class="activity-item">
+              <div class="ai-ic out"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="ai-text"><b>D. Ortiz</b> · JB Hunt checked out from <b>D-08</b><span class="ai-sub">PO-998644 · 1h 12m total · 08:48</span></div>
+              <div class="ai-time">12m ago</div>
+            </div>
+            <div class="activity-item">
+              <div class="ai-ic in"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+              <div class="ai-text"><b>A. Nakamura</b> · JB Hunt checked in to <b>D-03</b><span class="ai-sub">PO-998620 · 08:46</span></div>
+              <div class="ai-time">14m ago</div>
+            </div>
+            <div class="activity-item">
+              <div class="ai-ic warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+              <div class="ai-text"><b>D-12</b> overrun flagged — Schneider · 26m past target<span class="ai-sub">Auto-flag · supervisor notified · 08:36</span></div>
+              <div class="ai-time">24m ago</div>
+            </div>
+            <div class="activity-item">
+              <div class="ai-ic out"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="ai-text"><b>L. Vasquez</b> · C.H. Robinson checked out from <b>D-02</b><span class="ai-sub">LD-44480 · 0h 47m total · 08:24</span></div>
+              <div class="ai-time">36m ago</div>
+            </div>
+            <div class="activity-item">
+              <div class="ai-ic alert"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+              <div class="ai-text">Walk-in <b>M. Ortiz</b> · Roadrunner — no appointment, queued for review<span class="ai-sub">Says LTL drop · DOT-3142008 · 08:28</span></div>
+              <div class="ai-time">32m ago</div>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /.page -->
+    </main>
+  </div><!-- /.app -->
+
+  <!-- ============== CHECK-IN DRAWER ============== -->
+  <aside class="drawer" id="checkinDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title" id="ciTitle">Check in driver</h3>
+        <p class="drawer-sub" id="ciSub">Verify identity, equipment, and assign a dock</p>
+      </div>
+      <button class="drawer-close" id="ciClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+
+    <div class="drawer-body">
+
+      <!-- Verification card (auto-checked from scan) -->
+      <div class="form-section">
+        <div class="form-section-title">1. Identity &amp; appointment</div>
+        <div class="verify-card">
+          <div class="verify-row ok">
+            <div class="vr-l">Driver</div>
+            <div class="vr-v" id="ciDriver">A. Nakamura · CDL-A</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">Carrier</div>
+            <div class="vr-v" id="ciCarrier">JB Hunt · DOT 3142800</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">Appointment</div>
+            <div class="vr-v" id="ciAppt">APPT-3822 · 09:00 · matches PO</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">PO / BOL</div>
+            <div class="vr-v"><span class="ref-mono" id="ciRef">PO-998620</span></div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row warn">
+            <div class="vr-l">Arrival</div>
+            <div class="vr-v" id="ciArrival">04m 21s ago · 4m early — within window</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Equipment confirm -->
+      <div class="form-section">
+        <div class="form-section-title">2. Equipment check</div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Trailer #</label>
+            <input type="text" class="input" id="ciTrailer" value="JBH-44820"/>
+          </div>
+          <div class="field">
+            <label>Seal #</label>
+            <input type="text" class="input" id="ciSeal" value="SL-880241"/>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label>Trailer condition</label>
+            <select class="select" id="ciCondition">
+              <option>Good · no damage</option>
+              <option>Minor damage · noted</option>
+              <option>Damaged · flag for inspection</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Reefer set point</label>
+            <input type="text" class="input" id="ciTemp" value="34°F" placeholder="N/A for dry"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dock assignment -->
+      <div class="form-section">
+        <div class="form-section-title">3. Assign a dock</div>
+        <p style="margin: 0; font-size: 12.5px; color: var(--text-tertiary);">Best fits for inbound reefer · 3 docks available right now</p>
+        <div class="dock-chip-grid" id="ciDockGrid">
+          <button type="button" class="dock-chip on" data-dock="D-04">
+            <div class="dc-num">D-04</div>
+            <div class="dc-cap">Reefer · Best fit</div>
+          </button>
+          <button type="button" class="dock-chip" data-dock="D-02">
+            <div class="dc-num">D-02</div>
+            <div class="dc-cap">Reefer · Open</div>
+          </button>
+          <button type="button" class="dock-chip" data-dock="D-08">
+            <div class="dc-num">D-08</div>
+            <div class="dc-cap">Standard · Open</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="form-section">
+        <div class="form-section-title">4. Notes for the dock team</div>
+        <div class="field">
+          <textarea class="input" id="ciNotes" rows="3" placeholder="Anything the loaders should know — fragile, hot load, palletized, hazardous, etc."></textarea>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="drawer-foot">
+      <button class="btn ghost" id="ciCancel">Cancel</button>
+      <div class="right-actions">
+        <button class="btn danger-ghost" id="ciFlag">Flag issue</button>
+        <button class="btn primary" id="ciConfirm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Check in &amp; print pass
+        </button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== MANUAL CHECK-IN DRAWER ============== -->
+  <aside class="drawer" id="manualDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile" style="background: var(--warning-soft); color: var(--warning); box-shadow: inset 0 0 0 1px rgba(245,158,11,0.20);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 11v6M9 14h6"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title">Manual check-in</h3>
+        <p class="drawer-sub">Walk-in or scanner unavailable — enter details by hand</p>
+      </div>
+      <button class="drawer-close" id="mcClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+
+    <div class="drawer-body">
+      <div class="form-section">
+        <div class="form-section-title">Driver</div>
+        <div class="grid-2">
+          <div class="field"><label>Driver name</label><input type="text" class="input" placeholder="First Last"/></div>
+          <div class="field"><label>License #</label><input type="text" class="input" placeholder="CDL-A · TX 884-7232-0"/></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Phone</label><input type="tel" class="input" placeholder="(555) 000-0000"/></div>
+          <div class="field"><label>Carrier</label>
+            <select class="select">
+              <option>Walmart Transport</option>
+              <option>Knight Transport</option>
+              <option>JB Hunt</option>
+              <option>Schneider</option>
+              <option>FedEx Freight</option>
+              <option>Sysco</option>
+              <option>XPO Logistics</option>
+              <option>C.H. Robinson</option>
+              <option>Other (enter manually)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Load</div>
+        <div class="grid-2">
+          <div class="field"><label>PO / BOL #</label><input type="text" class="input" placeholder="PO-998620"/></div>
+          <div class="field"><label>Trailer #</label><input type="text" class="input" placeholder="ABC-12345"/></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>Direction</label>
+            <select class="select"><option>Inbound (receiving)</option><option>Outbound (shipping)</option><option>Cross-dock</option></select>
+          </div>
+          <div class="field"><label>Equipment</label>
+            <select class="select"><option>53′ Trailer</option><option>48′ Trailer</option><option>Box truck</option><option>Reefer</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Reason for manual entry</div>
+        <div class="grid-3">
+          <button type="button" class="radio-card on" data-reason="walkin">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg></span>
+            <span class="lbl">Walk-in</span><span class="sub">No appointment</span>
+          </button>
+          <button type="button" class="radio-card" data-reason="scanner">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>
+            <span class="lbl">Scanner down</span><span class="sub">Hardware issue</span>
+          </button>
+          <button type="button" class="radio-card" data-reason="early">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="lbl">Mismatch</span><span class="sub">Doesn't match appt</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Notes</div>
+        <div class="field">
+          <textarea class="input" rows="3" placeholder="Why was manual entry needed? Anything unusual?"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <footer class="drawer-foot">
+      <button class="btn ghost" id="mcCancel">Cancel</button>
+      <div class="right-actions">
+        <button class="btn primary" id="mcConfirm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Create manual check-in
+        </button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== ACTIVE DETAIL DRAWER ============== -->
+  <aside class="drawer wide" id="detailDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 8h4l3 3v6a1 1 0 0 1-1 1h-1"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title" id="dtTitle">APPT-3812 · Walmart Transport</h3>
+        <p class="drawer-sub" id="dtSub">D-01 · J. Carter · 0:32 elapsed</p>
+      </div>
+      <span class="status-pill s-loading" id="dtStatus" style="margin-right: 10px;"><span class="pulse"></span>Loading</span>
+      <button class="drawer-close" id="dtClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+
+      <div class="form-section">
+        <div class="form-section-title">Live status</div>
+        <div class="verify-card">
+          <div class="verify-row ok">
+            <div class="vr-l">Checked in</div>
+            <div class="vr-v" id="dtCheckin">07:46 · by Daniel Reyes</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">Dock</div>
+            <div class="vr-v" id="dtDock">D-01 · Reefer · plug-in active</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">Loader</div>
+            <div class="vr-v" id="dtLoader">M. Tran (Day shift) · 14 of 22 pallets</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+          <div class="verify-row ok">
+            <div class="vr-l">ETA finish</div>
+            <div class="vr-v" id="dtEta">11:18 · on schedule</div>
+            <div class="vr-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Timeline</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">07:46</div>
+            <div style="font-size: 13px;"><b>Checked in at gate</b> — license &amp; PO scanned</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">07:48</div>
+            <div style="font-size: 13px;">Driver arrived at <b>D-01</b> — gate to dock 2 minutes</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-soft);">
+            <div style="font-size: 11.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-weight: 700;">07:52</div>
+            <div style="font-size: 13px;">Loading started — assigned to <b>M. Tran</b></div>
+          </div>
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 8px 0;">
+            <div style="font-size: 11.5px; color: var(--brand); font-variant-numeric: tabular-nums; font-weight: 700;">Now</div>
+            <div style="font-size: 13px; color: var(--brand);"><b>14/22 pallets loaded</b> — ETA finish 11:18</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Quick actions</div>
+        <div class="grid-3">
+          <button type="button" class="radio-card" data-quick="loader">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg></span>
+            <span class="lbl">Reassign loader</span>
+            <span class="sub">Move to another</span>
+          </button>
+          <button type="button" class="radio-card" data-quick="dock">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 8h4l3 3v6"/></svg></span>
+            <span class="lbl">Move to other dock</span>
+            <span class="sub">Reassign D-#</span>
+          </button>
+          <button type="button" class="radio-card" data-quick="message">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+            <span class="lbl">Message driver</span>
+            <span class="sub">SMS in cab</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <footer class="drawer-foot">
+      <button class="btn danger-ghost" id="dtFlagIssue">Flag issue</button>
+      <div class="right-actions">
+        <button class="btn ghost" id="dtPrintGate">Print gate pass</button>
+        <button class="btn success" id="dtCheckoutBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Check out driver
+        </button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== ISSUE / DISCREPANCY DRAWER ============== -->
+  <aside class="drawer" id="issueDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile" style="background: var(--danger-soft); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(239,68,68,0.18);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title">Flag an issue</h3>
+        <p class="drawer-sub" id="issueSub">For APPT-3810 · R. Powell · D-12</p>
+      </div>
+      <button class="drawer-close" id="isClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+
+      <div class="form-section">
+        <div class="form-section-title">Issue type</div>
+        <div class="grid-2">
+          <button type="button" class="radio-card on" data-issue="po-mismatch">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
+            <span class="lbl">PO mismatch</span><span class="sub">Driver's PO ≠ scheduled PO</span>
+          </button>
+          <button type="button" class="radio-card" data-issue="damage">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></span>
+            <span class="lbl">Equipment damage</span><span class="sub">Trailer / seal / door</span>
+          </button>
+          <button type="button" class="radio-card" data-issue="overrun">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="lbl">Loading overrun</span><span class="sub">Past scheduled window</span>
+          </button>
+          <button type="button" class="radio-card" data-issue="other">
+            <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+            <span class="lbl">Other</span><span class="sub">Describe in notes</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Severity</div>
+        <div class="grid-3">
+          <button type="button" class="radio-card on" data-severity="info" style="border-color: var(--info);">
+            <span class="lbl" style="color: var(--info);">Info</span><span class="sub">FYI · log only</span>
+          </button>
+          <button type="button" class="radio-card" data-severity="warn">
+            <span class="lbl" style="color: var(--warning);">Warning</span><span class="sub">Notify supervisor</span>
+          </button>
+          <button type="button" class="radio-card" data-severity="critical">
+            <span class="lbl" style="color: var(--danger);">Critical</span><span class="sub">Hold load · escalate</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Details</div>
+        <div class="field">
+          <textarea class="input" rows="4" placeholder="What happened? Be specific — this becomes part of the audit trail."></textarea>
+        </div>
+        <div class="field">
+          <label>Photo (optional)</label>
+          <button type="button" style="height: 80px; border: 1.5px dashed var(--border-strong); border-radius: 10px; background: var(--bg-subtle); color: var(--text-tertiary); font-size: 13px; cursor: pointer; display: grid; place-items: center; gap: 4px; font-family: inherit;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Tap to take a photo or attach
+          </button>
+        </div>
+      </div>
+
+    </div>
+    <footer class="drawer-foot">
+      <button class="btn ghost" id="isCancel">Cancel</button>
+      <div class="right-actions">
+        <button class="btn danger" id="isSubmit">Submit issue &amp; notify</button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== CHECK-OUT MODAL ============== -->
+  <div class="modal" id="checkoutModal" aria-hidden="true">
+    <header class="modal-head">
+      <div class="icon-tile success">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div>
+        <h3 class="modal-title">Check out driver</h3>
+        <p class="modal-sub">Confirm load is complete and capture exit signature.</p>
+      </div>
+      <button class="drawer-close" id="coClose" aria-label="Close" style="margin-left: auto;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="modal-body">
+      <div class="modal-preview">
+        <div class="mp-row"><span class="mp-l">Driver</span><span><b id="coDriver">J. Carter</b> · <span id="coCarrier">Walmart Transport</span></span></div>
+        <div class="mp-row"><span class="mp-l">PO / Ref</span><span class="ref-mono" id="coRef">PO-998612</span></div>
+        <div class="mp-row"><span class="mp-l">Dock</span><span><b id="coDock">D-01</b></span></div>
+        <div class="mp-row"><span class="mp-l">Total time</span><span id="coTotal"><b>1h 34m</b> · gate-to-gate</span></div>
+        <div class="mp-row"><span class="mp-l">Pallets</span><span id="coPallets">22 of 22 loaded · seal SL-880244 affixed</span></div>
+      </div>
+      <div class="field" style="margin-top: 14px;">
+        <label>Driver signature</label>
+        <div class="signature-pad" id="coSig">Tap to capture signature</div>
+      </div>
+      <div class="field" style="margin-top: 12px;">
+        <label>Notes (optional)</label>
+        <textarea class="input" rows="2" placeholder="Any final notes — temp readings, damages noted at exit, etc."></textarea>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn ghost" id="coDismiss">Cancel</button>
+      <button class="btn success" id="coConfirm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Check out &amp; release
+      </button>
+    </footer>
+  </div>
+
+  <!-- ============== REJECT WALK-IN MODAL ============== -->
+  <div class="modal" id="rejectModal" aria-hidden="true">
+    <header class="modal-head">
+      <div class="icon-tile danger">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      </div>
+      <div>
+        <h3 class="modal-title">Reject walk-in?</h3>
+        <p class="modal-sub" id="rjSub">M. Ortiz · Roadrunner — no appointment on file</p>
+      </div>
+      <button class="drawer-close" id="rjClose" aria-label="Close" style="margin-left: auto;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="modal-body">
+      <div class="field"><label>Reason</label>
+        <select class="select" id="rjReason"><option>No appointment · capacity full</option><option>PO not in system</option><option>Carrier not approved</option><option>Outside operating hours</option><option>Other (specify in notes)</option></select>
+      </div>
+      <div class="field" style="margin-top: 12px;"><label>Note for the carrier (sent to dispatcher)</label>
+        <textarea class="input" rows="3" placeholder="Suggested next steps — book through portal, contact dispatcher, etc."></textarea>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn ghost" id="rjDismiss">Keep in queue</button>
+      <button class="btn danger" id="rjConfirm">Reject &amp; turn away</button>
+    </footer>
+  </div>
+
+  <!-- ============== ASSIGN DOCK DRAWER (from clicking idle dock) ============== -->
+  <aside class="drawer" id="assignDrawer" aria-hidden="true">
+    <header class="drawer-head">
+      <div class="icon-tile">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+      <div style="flex: 1; min-width: 0;">
+        <h3 class="drawer-title">Assign <span id="adDockId">D-02</span></h3>
+        <p class="drawer-sub">Pick a waiting driver to send to this dock</p>
+      </div>
+      <button class="drawer-close" id="adClose" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </header>
+    <div class="drawer-body">
+      <div class="form-section">
+        <div class="form-section-title">Drivers waiting in queue</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;" id="adQueueList">
+          <button type="button" class="radio-card on" data-assign-driver="A. Nakamura · JB Hunt">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="qc-av av-4" style="width: 32px; height: 32px; font-size: 11px;">JB</span>
+              <span><span class="lbl">A. Nakamura</span><br><span class="sub">JB Hunt · PO-998620 · waiting 4m</span></span>
+            </div>
+          </button>
+          <button type="button" class="radio-card" data-assign-driver="R. Powell · Schneider">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="qc-av av-1" style="width: 32px; height: 32px; font-size: 11px;">SC</span>
+              <span><span class="lbl">R. Powell</span><br><span class="sub">Schneider · LD-44321 · waiting 14m (late)</span></span>
+            </div>
+          </button>
+          <button type="button" class="radio-card" data-assign-driver="A. Flores · Walmart Transport">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="qc-av av-2" style="width: 32px; height: 32px; font-size: 11px;">WT</span>
+              <span><span class="lbl">A. Flores</span><br><span class="sub">Walmart Transport · REC-WM-T16 · waiting 3m (early)</span></span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Or take from upcoming</div>
+        <p style="margin: 0; font-size: 12.5px; color: var(--text-tertiary);">Pull next-arriving driver to this dock so loaders can pre-stage pallets.</p>
+        <button class="btn ghost" style="align-self: flex-start;">Hold for next arrival</button>
+      </div>
+    </div>
+    <footer class="drawer-foot">
+      <button class="btn ghost" id="adCancel">Cancel</button>
+      <div class="right-actions">
+        <button class="btn primary" id="adConfirm">Send driver to dock</button>
+      </div>
+    </footer>
+  </aside>
+
+  <!-- ============== SCRIM ============== -->
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ============== TOAST STACK ============== -->
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ============== POPMENUS ============== -->
+  <!-- Notifications -->
+  <div class="popmenu" id="notifPop" role="menu" style="min-width: 320px;">
+    <div style="padding: 8px 10px 6px; display: flex; align-items: center; gap: 8px;">
+      <b style="font-size: 13px;">Notifications</b>
+      <span style="font-size: 11px; color: var(--text-tertiary); margin-left: auto;">3 new</span>
+    </div>
+    <button class="pm-item" data-notif="overrun">
+      <span class="pm-ic" style="background: var(--danger-soft); color: var(--danger);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span style="text-align: left;"><b style="font-size: 13px;">D-12 overrun · 26m</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Schneider · supervisor notified</span></span>
+    </button>
+    <button class="pm-item" data-notif="walkin">
+      <span class="pm-ic" style="background: var(--warning-soft); color: var(--warning);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+      <span style="text-align: left;"><b style="font-size: 13px;">Walk-in · M. Ortiz</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Roadrunner · waiting 21m</span></span>
+    </button>
+    <button class="pm-item" data-notif="wait">
+      <span class="pm-ic" style="background: var(--brand-soft); color: var(--brand);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+      <span style="text-align: left;"><b style="font-size: 13px;">Avg wait above target</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">6m 24s vs 5m goal</span></span>
+    </button>
+    <div style="border-top: 1px solid var(--border-soft); margin: 6px 4px 2px;"></div>
+    <button class="pm-item" data-notif="all" style="justify-content: center; color: var(--brand); font-weight: 600;">View all notifications</button>
+  </div>
+
+  <!-- Org switch -->
+  <div class="popmenu" id="orgPop" role="menu" style="min-width: 280px;">
+    <div style="padding: 8px 10px 6px;"><b style="font-size: 11.5px; color: var(--text-tertiary); letter-spacing: 0.04em; text-transform: uppercase;">Switch organization</b></div>
+    <button class="pm-item" data-org="bobhaul">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #5b8cff, #c47bff); color: #fff; font-weight: 800;">B</span>
+      <span style="text-align: left; flex: 1;"><b style="font-size: 13px;">Bobhaul</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Dallas Distribution Hub</span></span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </button>
+    <button class="pm-item" data-org="walmart">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; font-weight: 800;">W</span>
+      <span style="text-align: left;"><b style="font-size: 13px;">Walmart Transport</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Carrier portal access</span></span>
+    </button>
+    <button class="pm-item" data-org="knight">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #fff; font-weight: 800;">K</span>
+      <span style="text-align: left;"><b style="font-size: 13px;">Knight Logistics</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Carrier portal access</span></span>
+    </button>
+    <div style="border-top: 1px solid var(--border-soft); margin: 6px 4px 2px;"></div>
+    <button class="pm-item" id="orgManage" style="color: var(--text-secondary);">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      Manage organizations
+    </button>
+  </div>
+
+  <!-- User -->
+  <div class="popmenu" id="userPop" role="menu">
+    <div style="padding: 10px 10px 8px; display: flex; gap: 10px; align-items: center;">
+      <span class="pm-ic" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 700; width: 32px; height: 32px;">DR</span>
+      <div><b style="font-size: 13px;">Daniel Reyes</b><br><span style="font-size: 11.5px; color: var(--text-tertiary);">Gate guard · Day shift</span></div>
+    </div>
+    <div style="border-top: 1px solid var(--border-soft); margin: 4px 4px 2px;"></div>
+    <button class="pm-item" data-user-act="profile">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+      Your profile
+    </button>
+    <button class="pm-item" data-user-act="prefs">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg></span>
+      Preferences
+    </button>
+    <button class="pm-item" data-user-act="shift">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      End shift &amp; hand off
+    </button>
+    <div style="border-top: 1px solid var(--border-soft); margin: 4px 4px 2px;"></div>
+    <button class="pm-item" data-user-act="signout" style="color: var(--danger);">
+      <span class="pm-ic" style="background: var(--danger-soft); color: var(--danger);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+      Sign out
+    </button>
+  </div>
+
+  <!-- Active row kebab -->
+  <div class="popmenu" id="rowMenu" role="menu">
+    <button class="pm-item" data-row-act="open">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+      Open details
+    </button>
+    <button class="pm-item" data-row-act="checkout">
+      <span class="pm-ic" style="background: var(--success-soft); color: var(--success);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+      Check out driver
+    </button>
+    <button class="pm-item" data-row-act="reassign">
+      <span class="pm-ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></svg></span>
+      Reassign dock
+    </button>
+    <div style="border-top: 1px solid var(--border-soft); margin: 4px 4px 2px;"></div>
+    <button class="pm-item" data-row-act="issue" style="color: var(--danger);">
+      <span class="pm-ic" style="background: var(--danger-soft); color: var(--danger);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></span>
+      Flag issue
+    </button>
+  </div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ============== TOAST SYSTEM ============== */
+  const toastStack = document.getElementById('toastStack');
+  const toastIcons = {
+    success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    warn:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+  function showToast(title, sub, kind, ms) {
+    kind = kind || 'info';
+    ms = ms || 3500;
+    const el = document.createElement('div');
+    el.className = 'toast ' + kind;
+    el.innerHTML = '<span class="ti">' + toastIcons[kind] + '</span>' +
+      '<div class="body"><div class="title">' + title + '</div>' +
+      (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>' +
+      '<button class="x" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+    toastStack.appendChild(el);
+    function dismiss() {
+      el.classList.add('exiting');
+      setTimeout(() => el.remove(), 220);
+    }
+    el.querySelector('.x').addEventListener('click', dismiss);
+    setTimeout(dismiss, ms);
+  }
+
+  function flashElement(el) {
+    if (!el) return;
+    el.classList.remove('row-flash');
+    void el.offsetWidth;
+    el.classList.add('row-flash');
+  }
+
+  /* ============== SIDEBAR — collapse + nav ============== */
+  const app = document.querySelector('.app');
+  const collapseBtn = document.querySelector('.sidebar-collapse');
+  if (collapseBtn) {
+    collapseBtn.addEventListener('click', () => {
+      app.classList.toggle('sidebar-collapsed');
+    });
+  }
+  document.querySelectorAll('.sidebar .nav-item:not(.expander)').forEach(item => {
+    item.addEventListener('click', e => {
+      if (item.classList.contains('active')) return;
+      const label = (item.querySelector('span:not(.nav-icon):not(.nav-badge)') || {}).textContent || '';
+      if (label && label !== 'Check-in / Check-out') {
+        showToast('Navigating', 'Would open ' + label.trim(), 'info', 1800);
+      }
+    });
+  });
+
+  /* ============== LOGO + breadcrumb ============== */
+  const logo = document.querySelector('.sidebar-logo');
+  if (logo) logo.addEventListener('click', () => showToast('Bobhaul', 'Going home', 'info', 1500));
+  document.querySelectorAll('.breadcrumb .crumb:not(.current)').forEach(c => {
+    c.addEventListener('click', () => showToast('Navigate', 'Up one level: ' + c.textContent, 'info', 1500));
+  });
+
+  /* ============== POPMENU SYSTEM ============== */
+  const POPS = {
+    notifBell:  'notifPop',
+    orgSelect:  'orgPop',
+    userChip:   'userPop'
+  };
+  let openPop = null;
+  function placePop(triggerEl, popEl) {
+    const r = triggerEl.getBoundingClientRect();
+    popEl.style.left = '0px'; popEl.style.top = '0px';
+    popEl.classList.add('is-open');
+    const pr = popEl.getBoundingClientRect();
+    let left = r.right - pr.width;
+    if (left < 8) left = r.left;
+    if (left + pr.width > window.innerWidth - 8) left = window.innerWidth - pr.width - 8;
+    popEl.style.left = left + 'px';
+    popEl.style.top = (r.bottom + 6) + 'px';
+  }
+  function placePopAtEvent(e, popEl) {
+    popEl.classList.add('is-open');
+    const pr = popEl.getBoundingClientRect();
+    let left = e.clientX;
+    let top  = e.clientY + 4;
+    if (left + pr.width > window.innerWidth - 8) left = window.innerWidth - pr.width - 8;
+    if (top + pr.height > window.innerHeight - 8) top = e.clientY - pr.height - 4;
+    popEl.style.left = left + 'px';
+    popEl.style.top  = top + 'px';
+  }
+  function closePop() {
+    if (openPop) { openPop.classList.remove('is-open'); openPop = null; }
+  }
+  Object.entries(POPS).forEach(([trigId, popId]) => {
+    const trig = document.getElementById(trigId);
+    const pop = document.getElementById(popId);
+    if (!trig || !pop) return;
+    trig.addEventListener('click', e => {
+      e.stopPropagation();
+      if (openPop === pop) { closePop(); return; }
+      closePop();
+      placePop(trig, pop);
+      openPop = pop;
+    });
+  });
+  document.addEventListener('click', e => {
+    if (openPop && !openPop.contains(e.target)) closePop();
+  });
+
+  // Notif menu items
+  document.querySelectorAll('#notifPop .pm-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const k = item.dataset.notif;
+      closePop();
+      if (k === 'overrun') showToast('D-12 overrun', 'Schneider · 26m past target — opening detail', 'warn', 2400);
+      else if (k === 'walkin') showToast('Walk-in waiting', 'M. Ortiz · Roadrunner — review queue', 'warn', 2400);
+      else if (k === 'wait') showToast('Wait time elevated', 'Avg 6m 24s vs 5m target', 'info', 2400);
+      else showToast('Notifications', 'Showing all 12', 'info', 1800);
+    });
+  });
+  // Org menu
+  document.querySelectorAll('#orgPop .pm-item[data-org]').forEach(item => {
+    item.addEventListener('click', () => {
+      closePop();
+      const o = item.querySelector('b').textContent;
+      showToast('Switching organization', 'Now viewing ' + o, 'info', 2000);
+    });
+  });
+  document.getElementById('orgManage').addEventListener('click', () => { closePop(); showToast('Manage organizations', 'Settings opening…', 'info', 1500); });
+  // User menu
+  document.querySelectorAll('#userPop .pm-item[data-user-act]').forEach(item => {
+    item.addEventListener('click', () => {
+      closePop();
+      const a = item.dataset.userAct;
+      if (a === 'signout') showToast('Signed out', 'See you on the next shift', 'info', 1800);
+      else if (a === 'shift') showToast('End-of-shift hand-off', 'Notes will be queued for the next guard', 'success', 2200);
+      else if (a === 'profile') showToast('Profile', 'Opening your profile', 'info', 1500);
+      else showToast('Preferences', 'Opening preferences', 'info', 1500);
+    });
+  });
+
+  /* ============== KPI clicks ============== */
+  document.querySelectorAll('.kpi').forEach(k => {
+    k.addEventListener('click', () => {
+      const map = {
+        gate: ['At-gate queue', '4 waiting now · longest 14m'],
+        checkedin: ['Checked in today', '22 total · 13 inbound, 9 outbound'],
+        wait: ['Wait time', 'Avg 6m 24s today · target 5m'],
+        loading: ['Currently loading', '8 active loads across 12 docks'],
+        checkedout: ['Checked out today', '14 total · avg 47m loading time']
+      };
+      const m = map[k.dataset.kpi] || ['KPI', 'Drilling in…'];
+      showToast(m[0], m[1], 'info', 2000);
+    });
+  });
+
+  /* ============== REFRESH ============== */
+  function spinIcon(btn) {
+    const svg = btn.querySelector('svg');
+    if (!svg) return;
+    svg.style.transition = 'transform 600ms ease';
+    svg.style.transform = 'rotate(360deg)';
+    setTimeout(() => { svg.style.transition=''; svg.style.transform=''; }, 700);
+  }
+  document.getElementById('refreshBtn').addEventListener('click', e => {
+    spinIcon(e.currentTarget);
+    showToast('Synced', 'Gate console up to date', 'success', 1600);
+  });
+  document.getElementById('queueRefreshBtn').addEventListener('click', e => {
+    spinIcon(e.currentTarget);
+    showToast('Queue refreshed', 'No new arrivals', 'info', 1500);
+  });
+  document.getElementById('printLogBtn').addEventListener('click', () => showToast('Printing log', "Today's check-ins · sent to GATE-PRN-01", 'info', 1800));
+
+  /* ============== SCRIM + close-everything ============== */
+  const scrim = document.getElementById('scrim');
+  const ALL_OVERLAYS = ['checkinDrawer', 'manualDrawer', 'detailDrawer', 'issueDrawer', 'assignDrawer', 'checkoutModal', 'rejectModal'];
+  function closeAllOverlays() {
+    ALL_OVERLAYS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.remove('open'); el.setAttribute('aria-hidden', 'true'); }
+    });
+    scrim.classList.remove('open');
+    closePop();
+  }
+  function openOverlay(id) {
+    closePop();
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('open');
+    el.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+  }
+  scrim.addEventListener('click', closeAllOverlays);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllOverlays(); });
+
+  /* ============== CHECK-IN DRAWER ============== */
+  const ciDrawer  = document.getElementById('checkinDrawer');
+  const ciTitle   = document.getElementById('ciTitle');
+  const ciSub     = document.getElementById('ciSub');
+  const ciDriverEl  = document.getElementById('ciDriver');
+  const ciCarrierEl = document.getElementById('ciCarrier');
+  const ciApptEl    = document.getElementById('ciAppt');
+  const ciRefEl     = document.getElementById('ciRef');
+  const ciArrivalEl = document.getElementById('ciArrival');
+
+  function fillCheckinDrawer(data) {
+    ciTitle.textContent = 'Check in ' + data.driver;
+    ciSub.textContent = data.carrier + ' · ' + (data.ref || 'No PO') + (data.appt ? ' · ' + data.appt : ' · walk-in');
+    ciDriverEl.textContent = data.driver + ' · CDL-A';
+    ciCarrierEl.textContent = data.carrier + ' · DOT 31' + Math.floor(Math.random() * 90000 + 10000);
+    if (data.appt) ciApptEl.textContent = data.appt + ' · matches PO';
+    else ciApptEl.textContent = 'No appointment · walk-in entry';
+    ciRefEl.textContent = data.ref || '—';
+    ciArrivalEl.textContent = (data.wait || '—') + ' ago · within window';
+    // Reset dock chip selection
+    document.querySelectorAll('#ciDockGrid .dock-chip').forEach((c, i) => c.classList.toggle('on', i === 0));
+    // Reset notes
+    document.getElementById('ciNotes').value = '';
+  }
+
+  document.querySelectorAll('#ciDockGrid .dock-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('#ciDockGrid .dock-chip').forEach(x => x.classList.remove('on'));
+      c.classList.add('on');
+    });
+  });
+  document.getElementById('ciClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('ciCancel').addEventListener('click', closeAllOverlays);
+  document.getElementById('ciFlag').addEventListener('click', () => {
+    closeAllOverlays();
+    setTimeout(() => openOverlay('issueDrawer'), 220);
+  });
+  document.getElementById('ciConfirm').addEventListener('click', () => {
+    const dock = (document.querySelector('#ciDockGrid .dock-chip.on') || {}).dataset || {};
+    const driver = ciDriverEl.textContent.split(' · ')[0];
+    const carrier = ciCarrierEl.textContent.split(' · ')[0];
+    closeAllOverlays();
+    showToast('Checked in · ' + dock.dock, driver + ' · ' + carrier + ' — gate pass printed', 'success', 2600);
+    // Visually remove from queue (the most recent one matched)
+    const matchEl = document.querySelector('.queue-card[data-driver="' + driver + '"]');
+    if (matchEl) {
+      matchEl.style.transition = 'opacity 220ms ease, max-height 280ms ease';
+      matchEl.style.opacity = '0';
+      matchEl.style.maxHeight = '0';
+      setTimeout(() => {
+        matchEl.remove();
+        decQueueCount();
+      }, 320);
+    }
+  });
+
+  function decQueueCount() {
+    const cnt = document.getElementById('queueCount');
+    const at  = document.getElementById('kpiAtGate');
+    const list = document.querySelectorAll('#queueList .queue-card').length;
+    if (cnt) cnt.textContent = list;
+    if (at)  at.textContent  = list;
+    if (list === 0) {
+      const empty = document.getElementById('queueEmpty');
+      if (empty) empty.style.display = '';
+    }
+  }
+
+  /* ============== QUEUE CARD ACTIONS ============== */
+  document.getElementById('queueList').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-q-act]');
+    if (!btn) return;
+    e.stopPropagation();
+    const card = btn.closest('.queue-card');
+    const data = {
+      driver:  card.dataset.driver,
+      carrier: card.dataset.carrier,
+      ref:     card.dataset.ref === '—' ? '' : card.dataset.ref,
+      appt:    card.dataset.appt,
+      wait:    (card.querySelector('.qc-wait b') || {}).textContent
+    };
+    const act = btn.dataset.qAct;
+    if (act === 'checkin') {
+      fillCheckinDrawer(data);
+      openOverlay('checkinDrawer');
+    } else if (act === 'defer') {
+      showToast('Driver deferred', data.driver + ' · sent to back of queue', 'info', 2200);
+      // Move card to bottom
+      const list = card.parentElement;
+      list.appendChild(card);
+      flashElement(card);
+    } else if (act === 'reject') {
+      // Open reject modal
+      document.getElementById('rjSub').textContent = data.driver + ' · ' + data.carrier + ' — no appointment on file';
+      openOverlay('rejectModal');
+    }
+  });
+
+  // Reject modal
+  ['rjClose', 'rjDismiss'].forEach(id => document.getElementById(id).addEventListener('click', closeAllOverlays));
+  document.getElementById('rjConfirm').addEventListener('click', () => {
+    closeAllOverlays();
+    showToast('Walk-in rejected', 'Driver turned away · note sent to dispatcher', 'error', 2400);
+    // remove the walk-in card
+    const walkin = document.querySelector('.queue-card[data-queue-id="Q-104"]');
+    if (walkin) {
+      walkin.style.transition = 'opacity 220ms ease, max-height 280ms ease';
+      walkin.style.opacity = '0'; walkin.style.maxHeight = '0';
+      setTimeout(() => { walkin.remove(); decQueueCount(); }, 320);
+    }
+  });
+
+  /* ============== MANUAL CHECK-IN DRAWER ============== */
+  document.getElementById('manualCheckinBtn').addEventListener('click', () => openOverlay('manualDrawer'));
+  document.getElementById('mcClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('mcCancel').addEventListener('click', closeAllOverlays);
+  document.querySelectorAll('#manualDrawer [data-reason]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#manualDrawer [data-reason]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.getElementById('mcConfirm').addEventListener('click', () => {
+    closeAllOverlays();
+    showToast('Manual check-in created', 'Logged with reason · audit trail updated', 'success', 2400);
+  });
+
+  /* ============== SCAN BUTTONS ============== */
+  document.getElementById('scanBtn').addEventListener('click', e => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="scan-pulse"></span>Scanning…';
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+      // Simulate finding the most-waited driver
+      const candidate = document.querySelector('.queue-card[data-queue-id="Q-101"]');
+      if (candidate) {
+        flashElement(candidate);
+        showToast('License read', 'Matched A. Nakamura · JB Hunt · APPT-3822', 'success', 2000);
+        const data = {
+          driver:  candidate.dataset.driver,
+          carrier: candidate.dataset.carrier,
+          ref:     candidate.dataset.ref,
+          appt:    candidate.dataset.appt,
+          wait:    candidate.querySelector('.qc-wait b').textContent
+        };
+        setTimeout(() => { fillCheckinDrawer(data); openOverlay('checkinDrawer'); }, 600);
+      } else {
+        showToast('Scan complete', 'No matching appointment — manual entry', 'warn', 2200);
+      }
+    }, 900);
+  });
+  document.getElementById('scanPoBtn').addEventListener('click', () => {
+    showToast('PO scanned', 'PO-998620 → matches APPT-3822 · A. Nakamura', 'success', 2200);
+  });
+
+  /* ============== DOCK GRID CLICKS ============== */
+  document.getElementById('dockGrid').addEventListener('click', e => {
+    const cell = e.target.closest('.dock-cell');
+    if (!cell) return;
+    const status = cell.dataset.status;
+    const dock   = cell.dataset.dock;
+    if (status === 'idle') {
+      document.getElementById('adDockId').textContent = dock;
+      openOverlay('assignDrawer');
+    } else if (status === 'loading' || status === 'late') {
+      // Open detail drawer for that dock
+      const row = document.querySelector('#activesBody tr[data-dock="' + dock + '"]');
+      if (row) {
+        flashElement(row);
+        openDetailFromRow(row);
+      } else {
+        showToast(dock + ' · ' + cell.querySelector('.dc-status-pill').textContent, 'No row found in active list', 'info', 1800);
+      }
+    } else if (status === 'reserved') {
+      showToast(dock + ' · reserved', 'Awaiting XPO Logistics ~11:15', 'info', 2000);
+    } else if (status === 'maint') {
+      showToast(dock + ' · maintenance', 'Leveler repair — back online 14:00', 'warn', 2200);
+    }
+  });
+
+  // Assign drawer
+  document.querySelectorAll('#assignDrawer [data-assign-driver]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#assignDrawer [data-assign-driver]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.getElementById('adClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('adCancel').addEventListener('click', closeAllOverlays);
+  document.getElementById('adConfirm').addEventListener('click', () => {
+    const sel = document.querySelector('#assignDrawer [data-assign-driver].on');
+    const dock = document.getElementById('adDockId').textContent;
+    closeAllOverlays();
+    if (sel) showToast('Driver sent to ' + dock, sel.dataset.assignDriver + ' — opening at gate', 'success', 2400);
+    else showToast(dock + ' · held for next arrival', 'Will auto-assign when next driver scans', 'info', 2200);
+  });
+
+  /* ============== ACTIVE TABLE INTERACTIONS ============== */
+  const tbody = document.getElementById('activesBody');
+
+  function openDetailFromRow(row) {
+    const driver = row.dataset.driver;
+    const carrier = row.dataset.carrier;
+    const ref = row.dataset.ref;
+    const dock = row.dataset.dock;
+    const elapsed = row.dataset.elapsed;
+    const checkin = row.dataset.checkin;
+    const status = row.dataset.status;
+    document.getElementById('dtTitle').textContent = (row.dataset.appt || ref) + ' · ' + carrier;
+    document.getElementById('dtSub').textContent = dock + ' · ' + driver + ' · ' + Math.floor(elapsed/60) + ':' + String(elapsed%60).padStart(2,'0') + ' elapsed';
+    document.getElementById('dtCheckin').textContent = checkin + ' · by Daniel Reyes';
+    document.getElementById('dtDock').textContent = dock + ' · ' + (status === 'late' ? 'overrun' : 'active');
+    const stEl = document.getElementById('dtStatus');
+    stEl.className = 'status-pill ';
+    if (status === 'late') { stEl.classList.add('s-late'); stEl.innerHTML = '<span class="pulse"></span>Overrun'; }
+    else if (status === 'loaded') { stEl.classList.add('s-loaded'); stEl.innerHTML = 'Loaded · ready'; }
+    else { stEl.classList.add('s-loading'); stEl.innerHTML = '<span class="pulse"></span>Loading'; }
+    openOverlay('detailDrawer');
+  }
+
+  tbody.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-active-act]');
+    const row = e.target.closest('tr');
+    if (!row) return;
+    if (btn) {
+      e.stopPropagation();
+      const act = btn.dataset.activeAct;
+      if (act === 'detail') {
+        openDetailFromRow(row);
+      } else if (act === 'checkout') {
+        // Pre-fill checkout modal
+        document.getElementById('coDriver').textContent = row.dataset.driver;
+        document.getElementById('coCarrier').textContent = row.dataset.carrier;
+        document.getElementById('coRef').textContent = row.dataset.ref;
+        document.getElementById('coDock').textContent = row.dataset.dock;
+        const e1 = parseInt(row.dataset.elapsed, 10);
+        document.getElementById('coTotal').innerHTML = '<b>' + Math.floor(e1/60) + 'h ' + (e1%60) + 'm</b> · gate-to-gate';
+        document.getElementById('coPallets').textContent = '22 of 22 loaded · seal SL-880' + Math.floor(Math.random()*900+100) + ' affixed';
+        document.getElementById('coSig').classList.remove('signed');
+        document.getElementById('coSig').textContent = 'Tap to capture signature';
+        // Stash row reference
+        document.getElementById('coConfirm').dataset.rowDock = row.dataset.dock;
+        openOverlay('checkoutModal');
+      } else if (act === 'issue') {
+        document.getElementById('issueSub').textContent = 'For ' + (row.dataset.appt || row.dataset.ref) + ' · ' + row.dataset.driver + ' · ' + row.dataset.dock;
+        openOverlay('issueDrawer');
+      }
+    } else {
+      openDetailFromRow(row);
+    }
+  });
+
+  /* ============== DETAIL DRAWER ACTIONS ============== */
+  document.getElementById('dtClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('dtFlagIssue').addEventListener('click', () => {
+    document.getElementById('issueSub').textContent = document.getElementById('dtTitle').textContent;
+    closeAllOverlays();
+    setTimeout(() => openOverlay('issueDrawer'), 220);
+  });
+  document.getElementById('dtPrintGate').addEventListener('click', () => showToast('Gate pass printed', 'Sent to GATE-PRN-01', 'info', 1800));
+  document.getElementById('dtCheckoutBtn').addEventListener('click', () => {
+    // Re-purpose existing checkout modal with detail drawer's data
+    const sub = document.getElementById('dtSub').textContent;
+    const parts = sub.split(' · '); // [dock, driver, elapsed]
+    document.getElementById('coDock').textContent = parts[0] || 'D-??';
+    document.getElementById('coDriver').textContent = parts[1] || 'Driver';
+    document.getElementById('coCarrier').textContent = (document.getElementById('dtTitle').textContent.split(' · ')[1]) || '';
+    document.getElementById('coSig').classList.remove('signed');
+    document.getElementById('coSig').textContent = 'Tap to capture signature';
+    closeAllOverlays();
+    setTimeout(() => openOverlay('checkoutModal'), 220);
+  });
+  document.querySelectorAll('#detailDrawer [data-quick]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#detailDrawer [data-quick]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      const m = { loader: 'Reassign loader', dock: 'Move to other dock', message: 'SMS to driver' };
+      showToast(m[b.dataset.quick], 'Action queued', 'info', 1600);
+    });
+  });
+
+  /* ============== ISSUE DRAWER ============== */
+  document.querySelectorAll('#issueDrawer [data-issue]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#issueDrawer [data-issue]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.querySelectorAll('#issueDrawer [data-severity]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#issueDrawer [data-severity]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  document.getElementById('isClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('isCancel').addEventListener('click', closeAllOverlays);
+  document.getElementById('isSubmit').addEventListener('click', () => {
+    const sev = document.querySelector('#issueDrawer [data-severity].on') || {};
+    const sevK = sev.dataset ? sev.dataset.severity : 'info';
+    closeAllOverlays();
+    const kind = sevK === 'critical' ? 'error' : (sevK === 'warn' ? 'warn' : 'info');
+    showToast('Issue logged', 'Severity: ' + (sevK || 'info') + ' · supervisor notified', kind, 2400);
+  });
+
+  /* ============== CHECKOUT MODAL ============== */
+  document.getElementById('coClose').addEventListener('click', closeAllOverlays);
+  document.getElementById('coDismiss').addEventListener('click', closeAllOverlays);
+  document.getElementById('coSig').addEventListener('click', e => {
+    e.currentTarget.classList.add('signed');
+    e.currentTarget.textContent = 'Captured · J. Carter';
+  });
+  document.getElementById('coConfirm').addEventListener('click', e => {
+    if (!document.getElementById('coSig').classList.contains('signed')) {
+      showToast('Signature required', 'Tap the pad to capture before releasing', 'warn', 2200);
+      return;
+    }
+    const dock = e.currentTarget.dataset.rowDock || document.getElementById('coDock').textContent;
+    closeAllOverlays();
+    showToast('Driver checked out · ' + dock, document.getElementById('coDriver').textContent + ' · released through gate', 'success', 2600);
+    // Remove that row, free that dock cell
+    const row = document.querySelector('#activesBody tr[data-dock="' + dock + '"]');
+    if (row) {
+      row.style.transition = 'opacity 220ms ease';
+      row.style.opacity = '0';
+      setTimeout(() => row.remove(), 240);
+    }
+    // Set the corresponding dock cell to idle
+    const cell = document.querySelector('.dock-cell[data-dock="' + dock + '"]');
+    if (cell) {
+      cell.dataset.status = 'idle';
+      cell.classList.remove('loading','late','reserved','maint');
+      cell.classList.add('idle');
+      cell.querySelector('.dc-status-pill').innerHTML = 'Idle';
+      cell.querySelector('.dc-body').innerHTML = 'Recently freed<br>Available now';
+      cell.querySelector('.dc-foot').textContent = 'Assign driver →';
+      flashElement(cell);
+    }
+  });
+
+  /* ============== ACTIVE TABLE — sort, filter, search ============== */
+  const headers = document.querySelectorAll('#activesTable thead th[data-sort]');
+  let curSort = { key: null, dir: 0 }; // 0 = none, 1 = asc, -1 = desc
+  headers.forEach(h => {
+    h.addEventListener('click', () => {
+      const k = h.dataset.sort;
+      // 3-state cycle
+      if (curSort.key !== k) { curSort.key = k; curSort.dir = 1; }
+      else if (curSort.dir === 1) { curSort.dir = -1; }
+      else if (curSort.dir === -1) { curSort.dir = 0; curSort.key = null; }
+      headers.forEach(x => x.classList.remove('sort-asc','sort-desc'));
+      if (curSort.dir === 1) h.classList.add('sort-asc');
+      else if (curSort.dir === -1) h.classList.add('sort-desc');
+      applyTableState();
+    });
+  });
+
+  function getCellSort(row, key) {
+    if (key === 'driver')   return row.dataset.driver.toLowerCase();
+    if (key === 'ref')      return row.dataset.ref.toLowerCase();
+    if (key === 'direction')return row.dataset.direction;
+    if (key === 'dock')     return row.dataset.dock;
+    if (key === 'checkin')  return row.dataset.checkin;
+    if (key === 'elapsed')  return parseInt(row.dataset.elapsed, 10);
+    if (key === 'status')   return row.dataset.status;
+    return '';
+  }
+
+  // Filter chips
+  let curFilter = 'all';
+  document.querySelectorAll('#filterChips .filter-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('#filterChips .filter-chip').forEach(x => x.classList.remove('is-active'));
+      c.classList.add('is-active');
+      curFilter = c.dataset.filter;
+      applyTableState();
+    });
+  });
+
+  // Search
+  document.getElementById('activesSearch').addEventListener('input', applyTableState);
+
+  function applyTableState() {
+    const q = (document.getElementById('activesSearch').value || '').toLowerCase().trim();
+    const rows = Array.from(tbody.querySelectorAll('tr:not(.empty-search-row)'));
+    // Filter
+    let visible = rows.filter(r => {
+      const s = r.dataset.status;
+      let matchFilter;
+      if (curFilter === 'all') matchFilter = true;
+      else if (curFilter === 'ingate') matchFilter = parseInt(r.dataset.elapsed,10) <= 10 && s !== 'late';
+      else if (curFilter === 'loading') matchFilter = s === 'loading';
+      else if (curFilter === 'loaded') matchFilter = s === 'loaded';
+      else if (curFilter === 'late') matchFilter = s === 'late';
+      else matchFilter = true;
+      const matchQ = !q || (
+        r.dataset.driver.toLowerCase().includes(q) ||
+        r.dataset.carrier.toLowerCase().includes(q) ||
+        r.dataset.ref.toLowerCase().includes(q) ||
+        r.dataset.dock.toLowerCase().includes(q)
+      );
+      return matchFilter && matchQ;
+    });
+    // Sort
+    if (curSort.dir !== 0) {
+      visible.sort((a, b) => {
+        const va = getCellSort(a, curSort.key);
+        const vb = getCellSort(b, curSort.key);
+        if (va < vb) return -1 * curSort.dir;
+        if (va > vb) return  1 * curSort.dir;
+        return 0;
+      });
+    }
+    // Hide all, show visible (in order)
+    rows.forEach(r => r.style.display = 'none');
+    visible.forEach(r => { r.style.display = ''; tbody.appendChild(r); });
+    // Empty state
+    const empty = tbody.querySelector('.empty-search-row');
+    if (visible.length === 0) {
+      if (!empty) {
+        const tr = document.createElement('tr');
+        tr.className = 'empty-search-row';
+        tr.innerHTML = '<td colspan="8">No active appointments match your filters.</td>';
+        tbody.appendChild(tr);
+      }
+    } else if (empty) { empty.remove(); }
+    document.getElementById('activesShown').textContent = visible.length;
+  }
+
+  /* ============== ACTIVITY FEED ============== */
+  document.querySelectorAll('#activityList .activity-item').forEach(it => {
+    it.addEventListener('click', () => {
+      const txt = (it.querySelector('.ai-text') || {}).textContent || '';
+      showToast('Event detail', txt.slice(0, 70) + (txt.length > 70 ? '…' : ''), 'info', 1800);
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
