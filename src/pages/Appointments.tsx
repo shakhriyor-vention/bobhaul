@@ -1,9 +1,6 @@
 import { useMemo, useRef, useState } from "react"
 import {
   AlertTriangle,
-  ArrowDownToLine,
-  ArrowLeftRight,
-  ArrowUpFromLine,
   Building2,
   Calendar as CalendarIcon,
   CalendarClock,
@@ -96,6 +93,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PageHeader } from "@/components/page-header"
 import { BookAppointmentDialog } from "@/components/dialogs/book-appointment-dialog"
+import { DirectionBadge } from "@/components/direction-badge"
 import { useStore, type Appointment, type AppointmentStatus } from "@/store"
 import { cn } from "@/lib/utils"
 
@@ -107,15 +105,6 @@ const statusTone: Record<AppointmentStatus, string> = {
   loading: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
   completed: "bg-muted text-muted-foreground",
   canceled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-}
-
-const typeTone: Record<"inbound" | "outbound" | "cross-dock", string> = {
-  inbound:
-    "border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300 font-semibold",
-  outbound:
-    "border-orange-500/40 bg-orange-500/15 text-orange-700 dark:text-orange-300 font-semibold",
-  "cross-dock":
-    "border-fuchsia-500/40 bg-gradient-to-r from-fuchsia-500/20 to-purple-500/20 text-fuchsia-700 dark:text-fuchsia-300 font-semibold",
 }
 
 const eventTone: Record<AppointmentStatus, string> = {
@@ -717,7 +706,7 @@ export default function Appointments() {
                       <span>
                         {formatLongDate(a.date)} · {formatTimeRange(a)}
                       </span>
-                      <Badge variant="outline" className={`capitalize ${typeTone[a.type]}`}>{a.type}</Badge>
+                      <DirectionBadge direction={a.type} size="md" />
                       <span>·</span>
                       <span>{driverName(a.driverId)}</span>
                     </div>
@@ -813,7 +802,7 @@ export default function Appointments() {
                 <SelectItem value="all">All directions</SelectItem>
                 <SelectItem value="inbound">Inbound</SelectItem>
                 <SelectItem value="outbound">Outbound</SelectItem>
-                <SelectItem value="cross-dock">Cross-dock</SelectItem>
+                <SelectItem value="cross-dock">Cross-Dock</SelectItem>
               </SelectContent>
             </Select>
             <div className="hidden items-center gap-1 lg:flex">
@@ -1384,30 +1373,6 @@ function compactRef(a: Appointment): string {
   return v.length > 12 ? v.slice(0, 11) + "…" : v
 }
 
-const directionMeta: Record<
-  Appointment["type"],
-  { Icon: typeof ArrowDownToLine; label: string; badgeClass: string }
-> = {
-  inbound: {
-    Icon: ArrowDownToLine,
-    label: "Inbound",
-    badgeClass:
-      "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
-  },
-  outbound: {
-    Icon: ArrowUpFromLine,
-    label: "Outbound",
-    badgeClass:
-      "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
-  },
-  "cross-dock": {
-    Icon: ArrowLeftRight,
-    label: "Transfer",
-    badgeClass:
-      "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30",
-  },
-}
-
 const statusBadgeClass: Record<AppointmentStatus, string> = {
   confirmed:
     "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
@@ -1457,7 +1422,6 @@ function BookingCard({
   const dur = defaultDuration(a)
   const endMin = timeToMinutes(a.time) + dur
   const endTime = minutesToTime(endMin)
-  const direction = directionMeta[a.type]
   const delay = delayMinutes(a)
   return (
     <li
@@ -1506,16 +1470,11 @@ function BookingCard({
         {a.status}
       </Badge>
 
-      <Badge
-        variant="outline"
-        className={cn(
-          "h-6 justify-self-start gap-1",
-          directionMeta[a.type].badgeClass,
-        )}
-      >
-        <direction.Icon className="size-3" />
-        {direction.label}
-      </Badge>
+      <DirectionBadge
+        direction={a.type}
+        size="md"
+        className="justify-self-start"
+      />
 
       <div className="min-w-0 truncate text-sm font-medium">{a.carrier}</div>
 
@@ -1792,9 +1751,7 @@ function EventHover({
           <span>{formatLongDate(appt.date)}</span>
           <span className="text-muted-foreground">Type</span>
           <span>
-            <Badge variant="outline" className={`capitalize ${typeTone[appt.type]}`}>
-              {appt.type}
-            </Badge>
+            <DirectionBadge direction={appt.type} size="sm" />
           </span>
           <span className="text-muted-foreground">Dock</span>
           <span className="font-mono">{appt.dockId ?? "Unassigned"}</span>
@@ -1902,14 +1859,15 @@ function DayView({
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-0.5 flex items-center gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className={`text-[9px] capitalize ${typeTone[a.type]}`}
-                    >
-                      {a.type}
-                    </Badge>
-                    <span className="truncate font-medium">{a.carrier}</span>
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                    <DirectionBadge
+                      direction={a.type}
+                      size="sm"
+                      responsive
+                    />
+                    <span className="min-w-0 truncate font-medium">
+                      {a.carrier}
+                    </span>
                   </div>
                   {height > 60 && (
                     <div className="mt-1 truncate text-[10px] text-muted-foreground">
@@ -2067,13 +2025,12 @@ function WeekDayCol({
               </div>
               <div className="truncate">{a.carrier}</div>
               {height > 40 && (
-                <div className="mt-0.5 flex items-center gap-1">
-                  <Badge
-                    variant="outline"
-                    className={`text-[8px] capitalize ${typeTone[a.type]}`}
-                  >
-                    {a.type}
-                  </Badge>
+                <div className="mt-0.5 flex min-w-0 items-center gap-1">
+                  <DirectionBadge
+                    direction={a.type}
+                    size="sm"
+                    responsive
+                  />
                 </div>
               )}
             </button>
@@ -2255,9 +2212,7 @@ function DetailSheet({
                       {open.status === "late" && <ClockAlert className="mr-1 size-3" />}
                       {open.status}
                     </Badge>
-                    <Badge variant="outline" className={`capitalize ${typeTone[open.type]}`}>
-                      {open.type}
-                    </Badge>
+                    <DirectionBadge direction={open.type} size="md" />
                     {open.recurring && (
                       <Badge variant="outline" className="text-[10px]">
                         <Repeat2 className="mr-1 size-3" />{" "}

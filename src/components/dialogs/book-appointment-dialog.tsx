@@ -52,7 +52,7 @@ const directions: {
 }[] = [
   { key: "inbound", label: "Inbound", hint: "Receiving" },
   { key: "outbound", label: "Outbound", hint: "Shipping" },
-  { key: "cross-dock", label: "Cross-dock", hint: "In & out" },
+  { key: "cross-dock", label: "Cross-Dock", hint: "In & out" },
 ]
 
 const windowOptions = [
