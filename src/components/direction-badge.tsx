@@ -53,33 +53,10 @@ type Size = "sm" | "md" | "lg"
 type Variant = "full" | "compact" | "icon-only"
 type Emphasis = "default" | "subtle"
 
-const SIZE_CLASSES: Record<
-  Size,
-  { wrapper: string; iconOnly: string; icon: string; text: string }
-> = {
-  sm: {
-    wrapper: "h-5 gap-1 px-1.5 text-[10px]",
-    iconOnly: "h-5 w-5",
-    icon: "size-3",
-    text: "leading-none",
-  },
-  md: {
-    wrapper: "h-6 gap-1.5 px-2 text-xs",
-    iconOnly: "h-6 w-6",
-    icon: "size-3.5",
-    text: "leading-none",
-  },
-  lg: {
-    wrapper: "h-7 gap-2 px-2.5 text-sm",
-    iconOnly: "h-7 w-7",
-    icon: "size-4",
-    text: "leading-none",
-  },
-}
-
-const EMPHASIS_BASE: Record<Emphasis, string> = {
-  default: "border border-border/60 bg-transparent text-foreground",
-  subtle: "border border-transparent bg-transparent text-foreground",
+const SIZE_HEIGHT: Record<Size, string> = {
+  sm: "h-5",
+  md: "h-6",
+  lg: "h-7",
 }
 
 const COLLAPSE_FULL_MIN = 96
@@ -139,15 +116,16 @@ export function DirectionBadge({
       ? variantForWidth(observedWidth)
       : "full"
 
-  const sizes = SIZE_CLASSES[size]
   const Icon = meta.Icon
-
   const isIconOnly = resolvedVariant === "icon-only"
   const isCompact = resolvedVariant === "compact"
   const labelText = isCompact ? meta.compactLabel : meta.label
 
   const badgeBase =
-    "inline-flex shrink-0 items-center justify-center rounded-md font-medium tracking-tight whitespace-nowrap select-none"
+    "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-border bg-transparent px-2 py-0.5 text-xs font-medium text-foreground whitespace-nowrap select-none capitalize"
+
+  const subtleOverride =
+    emphasis === "subtle" ? "border-transparent" : ""
 
   const content = (
     <span
@@ -159,19 +137,20 @@ export function DirectionBadge({
       aria-label={isIconOnly ? meta.ariaLabel : undefined}
       className={cn(
         badgeBase,
-        EMPHASIS_BASE[emphasis],
-        isIconOnly ? sizes.iconOnly : sizes.wrapper,
+        subtleOverride,
+        SIZE_HEIGHT[size],
+        isIconOnly && "px-0 aspect-square",
         className,
       )}
       {...rest}
     >
       <Icon
-        className={cn(sizes.icon, "shrink-0", meta.iconColor)}
+        className={cn("size-3 shrink-0", meta.iconColor)}
         aria-hidden={isIconOnly ? undefined : true}
         focusable="false"
       />
       {!isIconOnly && (
-        <span className={cn(sizes.text, "min-w-0 truncate")}>{labelText}</span>
+        <span className="leading-none min-w-0 truncate">{labelText}</span>
       )}
     </span>
   )
